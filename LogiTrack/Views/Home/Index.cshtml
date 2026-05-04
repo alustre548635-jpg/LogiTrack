@@ -1,0 +1,502 @@
+@{
+    Layout = null;
+    ViewData["Title"] = "LogiTrack — Landing Page";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LogiTrack — Track Smart. Deliver Faster.</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            overflow-x: hidden;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .font-display {
+            font-family: 'Barlow Condensed', sans-serif;
+        }
+
+        .gradient-accent {
+            background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+        }
+
+        .gradient-button {
+            background: linear-gradient(135deg, #3b82f6 0%, #0ea5e9 100%);
+        }
+
+            .gradient-button:hover {
+                background: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%);
+                transform: translateY(-2px);
+                box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+            }
+
+        @@keyframes floatIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @@keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @@keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @@keyframes pulse-soft {
+            0%, 100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.6;
+            }
+        }
+
+        .float-in {
+            animation: floatIn 0.6s ease-out both;
+        }
+
+        .slide-in-left {
+            animation: slideInLeft 0.7s ease-out both;
+        }
+
+        .slide-in-right {
+            animation: slideInRight 0.7s ease-out both;
+        }
+
+        .pulse-soft {
+            animation: pulse-soft 3s ease-in-out infinite;
+        }
+
+        .card-hover {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+            .card-hover:hover {
+                transform: translateY(-8px);
+                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            }
+
+        /* Hero section background with darkened image */
+        .hero-bg {
+            background-image: url('@Url.Content("~/Images/image1.jpg")');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            position: relative;
+        }
+
+            .hero-bg::before {
+                content: '';
+                position: absolute;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.55);
+                pointer-events: none;
+            }
+
+            .hero-bg > * {
+                position: relative;
+                z-index: 10;
+            }
+    </style>
+</head>
+<body class="bg-white text-slate-900">
+
+    <!-- NAVBAR -->
+    <nav class="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+            <a href="#" class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center shadow-sm">
+                    <img src="@Url.Content("~/Images/Logobg.png")" alt="LogiTrack" class="object-contain w-full h-full" />
+                </div>
+                <div>
+                    <div class="font-display font-bold text-xl">LogiTrack</div>
+                    <div class="text-xs text-orange-600 font-mono">Track Smart. Deliver Faster.</div>
+                </div>
+            </a>
+
+            <div class="hidden md:flex items-center gap-8">
+                <a href="#hero" class="text-sm hover:text-orange-600 transition">Home</a>
+                <a href="#services" class="text-sm hover:text-orange-600 transition">Services</a>
+                <a href="#features" class="text-sm hover:text-orange-600 transition">Features</a>
+                <a href="#about" class="text-sm hover:text-orange-600 transition">About</a>
+            </div>
+
+            <div class="flex items-center gap-3"></div>
+        </div>
+    </nav>
+
+    <!-- HERO SECTION WITH BACKGROUND IMAGE -->
+    <section id="hero" class="hero-bg relative overflow-hidden pt-20 pb-32">
+        <div class="relative max-w-7xl mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <!-- Left Content -->
+            <div class="slide-in-left space-y-6">
+                <h1 class="font-display text-5xl sm:text-6xl font-bold text-white leading-tight drop-shadow-lg">
+                    Track Smart.<br />Deliver Faster.
+                </h1>
+                <p class="text-xl text-gray-100 max-w-lg drop-shadow-md">
+                    A smarter way to manage logistics, deliveries, and warehouse operations. Centralize planning, optimize routes and monitor shipments in real time.
+                </p>
+
+                <div class="flex flex-col sm:flex-row gap-4 pt-4">
+                    <a href="@Url.Action("Register", "Account")" class="inline-flex items-center justify-center px-8 py-4 gradient-button text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition">
+                        Get Started Free
+                    </a>
+                    <a href="@Url.Action("Index", "Tracking")" class="inline-flex items-center justify-center px-8 py-4 border-2 border-white text-white font-semibold rounded-xl hover:bg-white/20 transition backdrop-blur-sm">
+                        Track Shipment
+                    </a>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="pt-8 flex gap-8 flex-wrap">
+                    <div class="float-in">
+                        <div class="text-2xl font-bold text-orange-300">99.9%</div>
+                        <div class="text-sm text-gray-100">Uptime SLA</div>
+                    </div>
+                    <div class="float-in" style="animation-delay: 0.1s;">
+                        <div class="text-2xl font-bold text-cyan-300">10K+</div>
+                        <div class="text-sm text-gray-100">Active Shipments</div>
+                    </div>
+                    <div class="float-in" style="animation-delay: 0.2s;">
+                        <div class="text-2xl font-bold text-blue-300">24/7</div>
+                        <div class="text-sm text-gray-100">Support</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Visual - Quick actions panel -->
+            <div class="hidden lg:flex slide-in-right relative justify-center">
+                <div class="w-[26rem] rounded-3xl overflow-hidden shadow-2xl bg-white border border-white/10">
+                    <div class="p-8">
+                        <div class="flex items-start justify-between gap-6 mb-6">
+                            <div>
+                                <h3 class="text-2xl font-bold text-slate-900">Quick actions</h3>
+                                <p class="text-sm text-slate-600 mt-1">Jump in without the clutter.</p>
+                            </div>
+                            <div class="w-12 h-12 rounded-2xl gradient-accent flex items-center justify-center text-white shadow-lg">
+                                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                            </div>
+                        </div>
+
+                        <!-- Track shipment card -->
+                        <div class="rounded-2xl bg-slate-50 border border-slate-200 p-5">
+                            <div class="flex items-center justify-between gap-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-700">
+                                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A2 2 0 013 15.382V6.618a2 2 0 011.105-1.789L9 2m0 18l6-3m-6 3V2m6 15l5.447-2.724A2 2 0 0021 12.382V3.618a2 2 0 00-1.105-1.789L15 2m0 15V2m0 0L9 5" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <div class="text-sm font-semibold text-slate-900">Track a shipment</div>
+                                        <div class="text-xs text-slate-600">Enter a tracking number to view status.</div>
+                                    </div>
+                                </div>
+                                <a href="@Url.Action("Index", "Tracking")" class="text-sm font-semibold text-orange-600 hover:text-orange-700 transition whitespace-nowrap">
+                                    Open tracker
+                                </a>
+                            </div>
+
+                            <form method="get" action="@Url.Action("Index", "Tracking")" class="mt-4 flex gap-2">
+                                <input name="trackingNumber" type="text" placeholder="e.g. SHP-2024-0091" maxlength="30"
+                                       class="flex-1 bg-white border border-slate-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 text-slate-900 placeholder:text-slate-500 rounded-xl px-4 py-2.5 text-sm outline-none transition-all font-mono" />
+                                <button type="submit" class="px-4 py-2.5 rounded-xl gradient-button text-white text-sm font-semibold shadow-md hover:shadow-lg transition">
+                                    Track
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Account actions -->
+                        <div class="mt-6 grid grid-cols-2 gap-3">
+                            <a href="@Url.Action("Login", "Account")"
+                               class="inline-flex items-center justify-center px-4 py-3 rounded-2xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition shadow-sm">
+                                Sign in
+                            </a>
+                            <a href="@Url.Action("Register", "Account")"
+                               class="inline-flex items-center justify-center px-4 py-3 rounded-2xl bg-white border border-slate-200 text-slate-900 text-sm font-semibold hover:border-slate-300 hover:bg-slate-50 transition shadow-sm">
+                                Create account
+                            </a>
+                        </div>
+
+                        <!-- Highlights -->
+                        <div class="mt-7 pt-6 border-t border-slate-200">
+                            <div class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">What you get</div>
+                            <div class="space-y-3">
+                                <div class="flex items-start gap-3">
+                                    <div class="mt-0.5 w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <div class="text-sm font-semibold text-slate-900">Real-time tracking</div>
+                                        <div class="text-xs text-slate-600">Events, ETAs, and live status updates.</div>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-start gap-3">
+                                    <div class="mt-0.5 w-5 h-5 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center flex-shrink-0">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <div class="text-sm font-semibold text-slate-900">Smarter routing</div>
+                                        <div class="text-xs text-slate-600">Fastest, cheapest, or eco-optimized routes.</div>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-start gap-3">
+                                    <div class="mt-0.5 w-5 h-5 rounded-full bg-cyan-100 text-cyan-700 flex items-center justify-center flex-shrink-0">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <div class="text-sm font-semibold text-slate-900">Warehouse visibility</div>
+                                        <div class="text-xs text-slate-600">Capacity, zones, and operational status.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SERVICES SECTION -->
+    <section id="services" class="bg-white py-20">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-16 float-in">
+                <h2 class="font-display text-4xl font-bold text-slate-900 mb-4">Our Services</h2>
+                <p class="text-lg text-slate-600">Everything you need to manage logistics efficiently</p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="card-hover rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100/50 p-8 float-in"
+                    style="animation-delay: 0s;">
+                    <div class="w-16 h-16 rounded-xl gradient-accent flex items-center justify-center mb-4 text-white">
+                        <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900 mb-3">Shipment Planning</h3>
+                    <p class="text-slate-600">Plan and schedule shipments with capacity and SLA awareness.</p>
+                </div>
+
+                <div class="card-hover rounded-2xl bg-gradient-to-br from-orange-50 to-orange-100/50 p-8 float-in"
+                    style="animation-delay: 0.1s;">
+                    <div class="w-16 h-16 rounded-xl gradient-accent flex items-center justify-center mb-4 text-white">
+                        <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900 mb-3">Delivery Tracking</h3>
+                    <p class="text-slate-600">Real-time location, ETAs and event-driven notifications.</p>
+                </div>
+
+                <div class="card-hover rounded-2xl bg-gradient-to-br from-cyan-50 to-cyan-100/50 p-8 float-in"
+                    style="animation-delay: 0.2s;">
+                    <div class="w-16 h-16 rounded-xl gradient-accent flex items-center justify-center mb-4 text-white">
+                        <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900 mb-3">Warehouse Management</h3>
+                    <p class="text-slate-600">Inventory, inbound/outbound workflows and optimization.</p>
+                </div>
+
+                <div class="card-hover rounded-2xl bg-gradient-to-br from-pink-50 to-pink-100/50 p-8 float-in"
+                    style="animation-delay: 0.3s;">
+                    <div class="w-16 h-16 rounded-xl gradient-accent flex items-center justify-center mb-4 text-white">
+                        <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900 mb-3">Freight Cost Management</h3>
+                    <p class="text-slate-600">Automated cost calculations, fuel surcharges and audits.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FEATURES SECTION -->
+    <section id="features" class="bg-gradient-to-br from-slate-900 to-slate-800 py-20 text-white">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="font-display text-4xl font-bold mb-4">Powerful Features</h2>
+                <p class="text-lg text-slate-300">Everything built for modern logistics operations</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-12">
+                <div class="float-in">
+                    <div class="text-5xl mb-4">📡</div>
+                    <h3 class="text-xl font-bold mb-3">Real-time Tracking</h3>
+                    <p class="text-slate-300">Live maps, telematics and status updates to keep customers informed every
+                        step of the way.</p>
+                </div>
+
+                <div class="float-in" style="animation-delay: 0.1s;">
+                    <div class="text-5xl mb-4">🧭</div>
+                    <h3 class="text-xl font-bold mb-3">Route Optimization</h3>
+                    <p class="text-slate-300">Minimize mileage and delivery time with AI-powered smart route planning and
+                        optimization.</p>
+                </div>
+
+                <div class="float-in" style="animation-delay: 0.2s;">
+                    <div class="text-5xl mb-4">🧾</div>
+                    <h3 class="text-xl font-bold mb-3">Automated Cost Calculation</h3>
+                    <p class="text-slate-300">Accurate freight costing, surcharges and reconciliation with instant
+                        reporting.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ABOUT SECTION -->
+    <section id="about" class="bg-white py-20">
+        <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div class="float-in">
+                <h2 class="font-display text-4xl font-bold text-slate-900 mb-6">About LogiTrack</h2>
+                <p class="text-lg text-slate-600 mb-4">
+                    LogiTrack unifies logistics operations in a single, easy-to-use platform. Increase efficiency, improve
+                    accuracy and centralize management across planning, execution and finance.
+                </p>
+                <ul class="space-y-3 text-slate-600">
+                    <li class="flex items-center gap-3">
+                        <span class="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center text-white text-sm font-bold">✓</span>
+                        Scalable for enterprise fleets and carrier networks
+                    </li>
+                    <li class="flex items-center gap-3">
+                        <span class="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center text-white text-sm font-bold">✓</span>
+                        Accurate ETAs and performance dashboards
+                    </li>
+                    <li class="flex items-center gap-3">
+                        <span class="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center text-white text-sm font-bold">✓</span>
+                        Secure, role-based access and audit trails
+                    </li>
+                </ul>
+            </div>
+
+            <div class="slide-in-right">
+                <div class="w-full h-80 rounded-2xl overflow-hidden shadow-xl">
+                    <img src="@Url.Content("~/Images/Aboutt.jpg")" alt="About LogiTrack"
+                        class="w-full h-full object-cover" />
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA SECTION -->
+    <section class="bg-gradient-to-r from-orange-600 to-orange-500 py-16 text-white">
+        <div class="max-w-4xl mx-auto px-6 text-center float-in">
+            <h2 class="font-display text-4xl font-bold mb-4">Start Managing Your Logistics Smarter Today</h2>
+            <p class="text-lg text-orange-100 mb-8">Get started in minutes. No credit card required.</p>
+            <a href="@Url.Action("Register", "Account")"
+                class="inline-flex px-8 py-4 bg-white text-orange-600 font-bold rounded-lg hover:bg-gray-100 transition shadow-lg">
+                Get Started Free
+            </a>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="bg-slate-900 text-gray-300 py-12">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
+                <div>
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center">
+                            <img src="@Url.Content("~/Images/Logobg.png")" alt="LogiTrack" class="object-contain w-full h-full" />
+                        </div>
+                        <span class="font-display font-bold">LogiTrack</span>
+                    </div>
+                    <p class="text-sm">Track Smart. Deliver Faster.</p>
+                </div>
+
+                <div>
+                    <h4 class="font-semibold text-white mb-4">Product</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="#services" class="hover:text-white transition">Services</a></li>
+                        <li><a href="#features" class="hover:text-white transition">Features</a></li>
+                        <li><a href="#about" class="hover:text-white transition">Pricing</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h4 class="font-semibold text-white mb-4">Company</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="#" class="hover:text-white transition">About</a></li>
+                        <li><a href="#" class="hover:text-white transition">Blog</a></li>
+                        <li><a href="#" class="hover:text-white transition">Contact</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h4 class="font-semibold text-white mb-4">Legal</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="#" class="hover:text-white transition">Privacy</a></li>
+                        <li><a href="#" class="hover:text-white transition">Terms</a></li>
+                        <li><a href="#" class="hover:text-white transition">Security</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-700 pt-8 flex flex-col sm:flex-row items-center justify-between text-sm">
+                <div>&copy; @DateTime.UtcNow.Year LogiTrack. All rights reserved.</div>
+                <div class="flex gap-6 mt-4 sm:mt-0">
+                    <a href="#" class="hover:text-white transition">Twitter</a>
+                    <a href="#" class="hover:text-white transition">LinkedIn</a>
+                    <a href="#" class="hover:text-white transition">GitHub</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

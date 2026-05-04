@@ -1,0 +1,278 @@
+@{
+    ViewData["Title"] = "Delivery Tracking";
+    ViewData["ActiveNav"] = "Tracking";
+    Layout = "~/Views/Shared/_ModuleLayout.cshtml";
+}
+
+<style>
+    @@keyframes pulseDot {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(1.4); }
+    }
+</style>
+
+<div x-data="{ selectedShipment: 'SHP-2024-0091' }" class="space-y-6 max-w-7xl mx-auto">
+
+    @* ===== PAGE HEADER ===== *@
+    <div class="flex items-center justify-between flex-wrap gap-3">
+        <div>
+            <h1 class="font-display text-4xl font-bold text-slate-900">Delivery Tracking</h1>
+            <p class="text-sm text-slate-600 mt-1">@DateTime.Now.ToString("dddd, MMMM dd yyyy")</p>
+            <div class="flex items-center gap-2 mt-1">
+                <div class="w-2 h-2 rounded-full bg-emerald-500" style="animation: pulseDot 1.5s ease-in-out infinite;"></div>
+                <span class="text-xs text-emerald-600 font-semibold">LIVE — Auto-refreshing every 10s</span>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <select class="bg-white border border-slate-300 text-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20">
+                <option>All Vehicles</option>
+                <option>Trucks</option>
+                <option>Vans</option>
+                <option>Motorcycles</option>
+            </select>
+            <button onclick="refreshTracking()" class="flex items-center gap-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-sm px-4 py-2 rounded-lg transition-all font-semibold">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                Refresh
+            </button>
+        </div>
+    </div>
+
+    @* ===== LIVE MAP ===== *@
+    <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden relative shadow-sm">
+
+        @* Map search overlay *@
+        <div class="absolute top-4 left-4 right-4 z-10 flex items-center gap-3 flex-wrap">
+            <div class="relative flex-1 min-w-[200px] max-w-sm">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
+                <input type="text" placeholder="Find vehicle or shipment…"
+                       class="w-full bg-white/95 backdrop-blur border border-slate-300 text-slate-800 placeholder:text-slate-400 rounded-lg pl-10 pr-4 py-2.5 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 shadow-sm" />
+            </div>
+            <div class="flex items-center gap-3 bg-white/95 backdrop-blur border border-slate-300 rounded-lg px-4 py-2.5 shadow-sm">
+                <div class="flex items-center gap-1.5">
+                    <div class="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+                    <span class="text-xs text-slate-600">Moving</span>
+                </div>
+                <div class="w-px h-4 bg-slate-200"></div>
+                <div class="flex items-center gap-1.5">
+                    <div class="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
+                    <span class="text-xs text-slate-600">Idle</span>
+                </div>
+                <div class="w-px h-4 bg-slate-200"></div>
+                <div class="flex items-center gap-1.5">
+                    <div class="w-2.5 h-2.5 rounded-full bg-red-500"></div>
+                    <span class="text-xs text-slate-600">Alert</span>
+                </div>
+            </div>
+        </div>
+
+        @* Google Maps API Placeholder *@
+        @* Google Maps API: initMap() bind here — use Directions API + MarkerClusterer *@
+        @* AJAX: GET /Tracking/LivePositions every 10s for vehicle marker updates *@
+        <div id="deliveryMap"
+             class="w-full h-96 bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
+            @* This div will be replaced by Google Maps *@
+            <div class="text-center">
+                <div class="w-16 h-16 mx-auto mb-4 bg-white rounded-2xl border border-slate-200 flex items-center justify-center shadow-sm">
+                    <svg class="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                    </svg>
+                </div>
+                <p class="text-slate-500 text-sm">Google Maps loads here</p>
+                <p class="text-slate-400 text-xs mt-1">initMap() — Directions API + MarkerClusterer</p>
+            </div>
+        </div>
+
+        @* Stats overlay bottom-right *@
+        <div class="absolute bottom-4 right-4 bg-white/95 backdrop-blur border border-slate-200 rounded-xl p-3 space-y-2 z-10 shadow-md">
+            <div class="text-xs uppercase tracking-widest text-slate-500 mb-1">Fleet Summary</div>
+            <div class="flex items-center justify-between gap-8">
+                <div><p class="text-lg font-bold text-emerald-600">43</p><p class="text-xs text-slate-500">Active</p></div>
+                <div><p class="text-lg font-bold text-amber-600">8</p><p class="text-xs text-slate-500">Idle</p></div>
+                <div><p class="text-lg font-bold text-red-600">2</p><p class="text-xs text-slate-500">Alerts</p></div>
+            </div>
+        </div>
+    </div>
+
+    @* ===== ACTIVE SHIPMENTS SCROLL STRIP ===== *@
+    @* AJAX: GET /Tracking/ActiveShipments *@
+    <div>
+        <h2 class="text-sm uppercase tracking-widest text-slate-500 mb-3">Active Shipments</h2>
+        <div class="flex gap-3 overflow-x-auto pb-2">
+            @{
+                var actives = new[] {
+                        new { Id="SHP-2024-0091", Driver="Rey Santos", Plate="NCR-1482", Origin="Manila", Dest="Cebu", Progress=72, ETA="3h 20m", Status="On Route" },
+                        new { Id="SHP-2024-0086", Driver="Maria Cruz", Plate="CAR-2291", Origin="QC", Dest="Baguio", Progress=45, ETA="5h 10m", Status="On Route" },
+                        new { Id="SHP-2024-0083", Driver="Jose Reyes", Plate="NCR-0887", Origin="Makati", Dest="Iloilo", Progress=88, ETA="1h 05m", Status="Near Dest." },
+                        new { Id="SHP-2024-0079", Driver="Ana Lim", Plate="NCR-3341", Origin="Pasig", Dest="Davao", Progress=22, ETA="9h 40m", Status="Delayed" },
+                        new { Id="SHP-2024-0077", Driver="Mark Dela", Plate="CAR-4490", Origin="Manila", Dest="Cagayan", Progress=61, ETA="4h 15m", Status="On Route" },
+                        };
+            }
+            @foreach (var a in actives)
+            {
+                <div class="shrink-0 w-64 bg-white border border-slate-200 rounded-2xl p-4 hover:border-sky-300 hover:shadow-md transition-all cursor-pointer hover:scale-[1.02]"
+                     @@click="selectedShipment = '@a.Id'">
+                    <div class="flex items-start justify-between mb-3">
+                        <span class="text-xs text-sky-600 font-semibold">@a.Id</span>
+                        <div class="flex items-center gap-1.5">
+                            <div class="w-2 h-2 rounded-full @(a.Status == "Delayed" ? "bg-red-500" : a.Status == "Near Dest." ? "bg-emerald-500" : "bg-sky-500")"
+                                 style="animation: pulseDot 1.5s ease-in-out infinite;"></div>
+                            <span class="text-xs font-semibold @(a.Status == "Delayed" ? "text-red-600" : a.Status == "Near Dest." ? "text-emerald-600" : "text-sky-600")">@a.Status</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-7 h-7 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-600">
+                            @a.Driver.Substring(0, 1)@a.Driver.Split(' ')[1].Substring(0, 1)
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-slate-800">@a.Driver</p>
+                            <p class="text-xs text-slate-400">@a.Plate</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1 text-xs text-slate-500 mb-2">
+                        <span>@a.Origin</span>
+                        <svg class="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M5 12h14m-7-7l7 7-7 7" /></svg>
+                        <span>@a.Dest</span>
+                    </div>
+                    <div class="h-1.5 bg-slate-100 rounded-full mb-1.5 overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-sky-500 to-sky-400 rounded-full transition-all"
+                             style="width: @a.Progress%"></div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-slate-400">@a.Progress% complete</span>
+                        <span class="text-xs text-sky-600 font-semibold">ETA @a.ETA</span>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    @* ===== BOTTOM GRID: Timeline + Alerts ===== *@
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-5">
+
+        @* Event Timeline (3/5 width) *@
+        <div class="lg:col-span-3 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <div class="flex items-center justify-between mb-5">
+                <h2 class="text-sm font-semibold text-slate-800 uppercase tracking-wider">Shipment Timeline</h2>
+                <span class="text-xs text-sky-600 font-semibold bg-sky-50 px-2.5 py-1 rounded-full border border-sky-100" x-text="selectedShipment">SHP-2024-0091</span>
+            </div>
+
+            @* AJAX: GET /Tracking/Timeline?id=selectedShipment *@
+            <div class="space-y-0">
+                @{
+                    var steps = new[] {
+                                new { Label="Order Created", Location="System", Time="2024-12-09 08:00", Done=true, Active=false },
+                                new { Label="Picked Up", Location="Manila Warehouse", Time="2024-12-09 10:30", Done=true, Active=false },
+                                new { Label="In Transit", Location="NLEX Checkpoint", Time="2024-12-09 13:15", Done=true, Active=true },
+                                new { Label="Out for Delivery", Location="Cebu Hub", Time="—", Done=false, Active=false },
+                                new { Label="Delivered", Location="Recipient Address", Time="—", Done=false, Active=false },
+                                };
+                }
+                @for (int i = 0; i < steps.Length; i++)
+                {
+                    var step = steps[i];
+                    <div class="flex gap-4">
+                        @* Line + dot *@
+                        <div class="flex flex-col items-center">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 @(step.Done ? (step.Active ? "bg-sky-500 ring-4 ring-sky-500/20" : "bg-emerald-500") : "bg-slate-200 border border-slate-300")">
+                                @if (step.Active)
+                                {
+                                    <div class="w-2.5 h-2.5 rounded-full bg-white" style="animation: pulseDot 1.5s ease-in-out infinite;"></div>
+                                }
+                                else if (step.Done)
+                                {
+                                    <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7" /></svg>
+                                }
+                                else
+                                {
+                                    <div class="w-2 h-2 rounded-full bg-slate-400"></div>
+                                }
+                            </div>
+                            @if (i < steps.Length - 1)
+                            {
+                                <div class="w-px flex-1 @(step.Done ? "bg-emerald-300" : "bg-slate-200") my-1 min-h-[2rem]"></div>
+                            }
+                        </div>
+                        @* Content *@
+                        <div class="pb-5">
+                            <p class="text-sm font-semibold @(step.Active ? "text-sky-600" : step.Done ? "text-slate-800" : "text-slate-400")">@step.Label</p>
+                            <p class="text-xs text-slate-500">@step.Location</p>
+                            <p class="text-xs text-slate-400 mt-0.5">@step.Time</p>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        @* Alerts Sidebar (2/5 width) *@
+        @* AJAX: GET /Tracking/Alerts *@
+        <div class="lg:col-span-2 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-sm font-semibold text-slate-800 uppercase tracking-wider">Active Alerts</h2>
+                <span class="text-xs bg-red-50 text-red-600 font-semibold px-2.5 py-1 rounded-full border border-red-100">2 Critical</span>
+            </div>
+            <div class="space-y-3">
+                @{
+                    var alerts = new[] {
+                                new { Id="SHP-2024-0079", Msg="Route deviation detected — 14km off planned route", Severity="critical", Time="5 min ago" },
+                                new { Id="SHP-2024-0091", Msg="Vehicle delayed due to traffic — ETA updated +45 min", Severity="warning", Time="12 min ago" },
+                                new { Id="SHP-2024-0082", Msg="Delivery attempt failed — recipient unavailable", Severity="info", Time="1h ago" },
+                                };
+                }
+                @foreach (var alert in alerts)
+                {
+                    <div class="bg-slate-50 border @(alert.Severity == "critical" ? "border-red-200" : alert.Severity == "warning" ? "border-amber-200" : "border-slate-200") rounded-xl p-3">
+                        <div class="flex items-start gap-2.5">
+                            <div class="mt-0.5 w-5 h-5 rounded-full flex items-center justify-center shrink-0 @(alert.Severity == "critical" ? "bg-red-100" : alert.Severity == "warning" ? "bg-amber-100" : "bg-slate-200")">
+                                <svg class="w-3 h-3 @(alert.Severity == "critical" ? "text-red-600" : alert.Severity == "warning" ? "text-amber-600" : "text-slate-500")" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+                                </svg>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-xs text-sky-600 font-semibold mb-0.5">@alert.Id</p>
+                                <p class="text-xs text-slate-700 leading-relaxed">@alert.Msg</p>
+                                <div class="flex items-center justify-between mt-2">
+                                    <span class="text-xs text-slate-400">@alert.Time</span>
+                                    <button class="text-xs text-sky-600 hover:text-sky-700 font-semibold transition-colors"
+                                            onclick="acknowledgeAlert('@alert.Id')">
+                                        Acknowledge
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Google Maps API: Replace YOUR_API_KEY
+        // <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap" async defer><\/script>
+        function initMap() {
+            const map = new google.maps.Map(document.getElementById('deliveryMap'), {
+                center: { lat: 12.8797, lng: 121.7740 }, // Philippines center
+                zoom: 6,
+                styles: [ /* Dark map style JSON here */ ]
+            });
+            // AJAX: GET /Tracking/LivePositions — plot markers
+        }
+
+        function acknowledgeAlert(id) {
+            // AJAX: POST /Tracking/AcknowledgeAlert
+            fetch('/Tracking/AcknowledgeAlert', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ shipmentId: id })
+            }).then(() => location.reload());
+        }
+
+        function refreshTracking() {
+            // AJAX: GET /Tracking/ActiveShipments — refresh cards
+        }
+
+        // Auto-refresh every 10 seconds
+        setInterval(refreshTracking, 10000);
+    </script>
+}

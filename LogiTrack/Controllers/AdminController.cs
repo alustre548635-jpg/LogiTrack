@@ -1,0 +1,237 @@
+using LogiTrack.Data;
+using LogiTrack.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+namespace LogiTrack.Controllers
+{
+    public class AdminController : Controller
+    {
+        private readonly LogiTrackDbContext _db;
+        private static readonly HashSet<string> AssignableRoles = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "Manager", "Staff", "Driver"
+        };
+
+        private static List<string> ParseAssignedModules(string? actionText)
+        {
+            if (string.IsNullOrWhiteSpace(actionText))
+                return new List<string>();
+
+            const string marker = "Assigned modules:";
+            var idx = actionText.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+            var modulesPart = idx >= 0 ? actionText[(idx + marker.Length)..] : actionText;
+
+            return modulesPart
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(m => !string.Equals(m, "No modules selected", StringComparison.OrdinalIgnoreCase))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        public AdminController(LogiTrackDbContext db)
+        {
+            _db = db;
+        }
+
+        public async Task<IActionResult> Index()
+        {
+            var userId = HttpContext.Session.GetString("UserId");
+            var role = HttpContext.Session.GetString("Role");
+
+            if (string.IsNullOrWhiteSpace(userId))
+                return RedirectToAction("Login", "Account");
+
+            if (!string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase))
+                return RedirectToAction("Index", "Home");
+
+            var moduleLogs = await _db.ActivityLogs
+                .Where(a => a.TableAffected == "UserModules")
+                .OrderByDescending(a => a.Timestamp)
+                .ToListAsync();
+
+            var userAssignedModules = moduleLogs
+                .GroupBy(a => a.UserId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => ParseAssignedModules(g.First().Action)
+                );
+
+            var model = new AdminDashboardViewModel
+            {
+                TotalUsers = await _db.Users.CountAsync(),
+                ActiveUsers = await _db.Users.CountAsync(u => u.IsActive),
+                AdminUsers = await _db.Users.CountAsync(u => u.Role == "Admin" && u.IsActive),
+                ManagerUsers = await _db.Users.CountAsync(u => u.Role == "Manager" && u.IsActive),
+                StaffUsers = await _db.Users.CountAsync(u => u.Role == "Staff" && u.IsActive),
+                DriverUsers = await _db.Users.CountAsync(u => u.Role == "Driver" && u.IsActive),
+                FinanceUsers = await _db.Users.CountAsync(u => u.Role == "Finance" && u.IsActive),
+                TotalShipments = await _db.Shipments.CountAsync(),
+                InTransitShipments = await _db.Shipments.CountAsync(s => s.Status == "In Transit"),
+                PendingShipments = await _db.Shipments.CountAsync(s => s.Status == "Pending"),
+                TotalCarriers = await _db.Carriers.CountAsync(),
+                TotalWarehouses = await _db.Warehouses.CountAsync(),
+                TotalRoutes = await _db.Routes.CountAsync(),
+                TotalInvoices = await _db.Invoices.CountAsync(),
+                TotalTrackingEvents = await _db.TrackingEvents.CountAsync(),
+                RecentActivities = await _db.ActivityLogs
+                    .Include(a => a.User)
+                    .OrderByDescending(a => a.Timestamp)
+                    .Take(8)
+                    .ToListAsync(),
+                Users = await _db.Users
+                    .OrderByDescending(u => u.IsActive)
+                    .ThenBy(u => u.FullName)
+                    .ToListAsync(),
+                UserAssignedModules = userAssignedModules
+            };
+
+            return View(model);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateUser(string FullName, string Email, string Role, string Password)
+        {
+            if (string.IsNullOrWhiteSpace(FullName) ||
+                string.IsNullOrWhiteSpace(Email) ||
+                string.IsNullOrWhiteSpace(Role) ||
+                string.IsNullOrWhiteSpace(Password))
+            {
+                TempData["AdminError"] = "All fields are required to create a user.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (!AssignableRoles.Contains(Role))
+            {
+                TempData["AdminError"] = "Invalid role selected. Allowed roles: Manager, Staff, Driver.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (Password.Length < 8)
+            {
+                TempData["AdminError"] = "Password must be at least 8 characters.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var email = Email.Trim();
+            var exists = await _db.Users.AnyAsync(u => u.Email == email);
+            if (exists)
+            {
+                TempData["AdminError"] = "Email is already in use.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            _db.Users.Add(new User
+            {
+                FullName = FullName.Trim(),
+                Email = email,
+                Role = Role.Trim(),
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(Password),
+                IsActive = true,
+                CreatedAt = DateTime.Now
+            });
+            await _db.SaveChangesAsync();
+
+            TempData["AdminSuccess"] = "User created successfully.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateUser(int UserId, string FullName, string Email, string Role, string? NewPassword)
+        {
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == UserId);
+            if (user == null)
+            {
+                TempData["AdminError"] = "User not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (string.IsNullOrWhiteSpace(FullName) || string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(Role))
+            {
+                TempData["AdminError"] = "Full name, email, and role are required.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (!AssignableRoles.Contains(Role))
+            {
+                TempData["AdminError"] = "Invalid role selected. Allowed roles: Manager, Staff, Driver.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var normalizedEmail = Email.Trim();
+            var duplicateEmail = await _db.Users.AnyAsync(u => u.Email == normalizedEmail && u.UserId != UserId);
+            if (duplicateEmail)
+            {
+                TempData["AdminError"] = "Another user already uses this email.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            user.FullName = FullName.Trim();
+            user.Email = normalizedEmail;
+            user.Role = Role.Trim();
+
+            if (!string.IsNullOrWhiteSpace(NewPassword))
+            {
+                if (NewPassword.Length < 8)
+                {
+                    TempData["AdminError"] = "New password must be at least 8 characters.";
+                    return RedirectToAction(nameof(Index));
+                }
+                user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(NewPassword);
+            }
+
+            _db.Users.Update(user);
+            await _db.SaveChangesAsync();
+
+            TempData["AdminSuccess"] = "User updated successfully.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ToggleUserStatus(int UserId)
+        {
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == UserId);
+            if (user == null)
+            {
+                TempData["AdminError"] = "User not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            user.IsActive = !user.IsActive;
+            _db.Users.Update(user);
+            await _db.SaveChangesAsync();
+
+            TempData["AdminSuccess"] = user.IsActive ? "User successfully reactivated." : "User successfully deactivated.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AssignModules(int UserId, List<string> SelectedModules)
+        {
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == UserId);
+            if (user == null)
+            {
+                TempData["AdminError"] = "User not found for module assignment.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var modules = SelectedModules?.Count > 0 ? string.Join(", ", SelectedModules) : "No modules selected";
+            _db.ActivityLogs.Add(new ActivityLog
+            {
+                UserId = user.UserId,
+                Action = $"Assigned modules: {modules}",
+                TableAffected = "UserModules",
+                IPAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+                Timestamp = DateTime.Now
+            });
+            await _db.SaveChangesAsync();
+
+            TempData["AdminSuccess"] = $"Modules assigned to {user.FullName}.";
+            return RedirectToAction(nameof(Index));
+        }
+    }
+}

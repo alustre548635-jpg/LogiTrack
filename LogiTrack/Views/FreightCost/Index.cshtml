@@ -1,0 +1,215 @@
+﻿@{
+    ViewData["Title"] = "Freight Cost Management";
+    ViewData["ActiveNav"] = "FreightCost";
+}
+
+<div x-data="{ activeTab: 'overview' }" class="space-y-5">
+
+    @* PAGE HEADER — RBAC: Admin/Finance only *@
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="font-display text-3xl font-bold text-slate-100 uppercase tracking-wide">Freight Cost</h1>
+            <p class="text-sm text-slate-500 font-mono mt-0.5">December 2024 · Financial Overview</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <select class="bg-slate-800 border border-slate-700 text-slate-300 rounded-xl px-3 py-2 text-sm outline-none font-mono">
+                <option>December 2024</option>
+                <option>November 2024</option>
+                <option>Q4 2024</option>
+            </select>
+            <button class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-sm px-4 py-2 rounded-xl transition-colors">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                Export Report
+            </button>
+        </div>
+    </div>
+
+    @* SUMMARY BAR — AJAX: GET /Cost/Summary *@
+    <div class="grid grid-cols-4 gap-4">
+        @{
+            var costKpis = new[] {
+                new { Label="Total Freight Spend", Value="₱1,284,750", Sub="MTD", Color="text-amber-400", Trend="+8.2% vs last month", Up=true },
+                new { Label="Budget Remaining", Value="₱415,250", Sub="of ₱1.7M budget", Color="text-emerald-400", Trend="75.6% utilized", Up=false },
+                new { Label="Avg Cost / KM", Value="₱18.40", Sub="fleet average", Color="text-cyan-400", Trend="-2.1% efficiency gain", Up=true },
+                new { Label="Overbudget Shipments", Value="7", Sub="require review", Color="text-red-400", Trend="+3 vs last week", Up=false },
+                };
+        }
+        @foreach (var kpi in costKpis)
+        {
+            <div class="bg-slate-800/60 border border-slate-700/50 rounded-xl p-4 hover:border-slate-600 transition-all">
+                <p class="text-xs uppercase tracking-widest text-slate-500 font-mono mb-2">@kpi.Label</p>
+                <p class="font-mono text-2xl font-bold @kpi.Color">@kpi.Value</p>
+                <p class="text-xs text-slate-600 font-mono mt-0.5">@kpi.Sub</p>
+                <p class="text-xs @(kpi.Up ? "text-emerald-400" : "text-slate-500") font-mono mt-2">@kpi.Trend</p>
+            </div>
+        }
+    </div>
+
+    @* TABS *@
+    <div class="flex items-center gap-1 bg-slate-800/60 border border-slate-700/50 rounded-xl p-1 w-fit">
+        @foreach (var tab in new[] { ("overview", "Overview"), ("rates", "Rate Cards"), ("anomalies", "Anomalies"), ("invoices", "Invoices") })
+        {
+            <button @@click="activeTab = '@tab.Item1'"
+                    :class="activeTab === '@tab.Item1' ? 'bg-amber-500 text-slate-900 font-semibold shadow' : 'text-slate-400 hover:text-slate-200'"
+                    class="px-4 py-2 rounded-lg text-sm transition-all font-mono">
+                @tab.Item2
+            </button>
+        }
+    </div>
+
+    @* OVERVIEW TAB *@
+    <div x-show="activeTab === 'overview'" class="space-y-4">
+        @* Chart placeholder — AJAX: GET /Cost/ChartData *@
+        <div class="bg-slate-800/60 border border-slate-700/50 rounded-xl p-5">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-sm font-semibold text-slate-200">Cost by Carrier — December 2024</h2>
+                <select class="bg-slate-800 border border-slate-700 text-slate-400 rounded-lg px-2 py-1 text-xs outline-none font-mono">
+                    <option>By Carrier</option>
+                    <option>By Route</option>
+                    <option>By Week</option>
+                </select>
+            </div>
+            @* PLACEHOLDER: Chart — bind Chart.js or ApexCharts here *@
+            <div id="costChart" class="h-48 flex items-center justify-center bg-slate-900/40 rounded-xl border border-slate-700/30">
+                @* Simulated bar chart using CSS *@
+                <div class="flex items-end gap-4 h-32 px-8">
+                    @{
+                        var bars = new[] {
+                                        new { Label="LBC", Height="85%", Val="₱482K", Color="bg-amber-500" },
+                                        new { Label="J&T", Height="62%", Val="₱354K", Color="bg-cyan-500" },
+                                        new { Label="Ninja", Height="45%", Val="₱258K", Color="bg-emerald-500" },
+                                        new { Label="2GO", Height="33%", Val="₱189K", Color="bg-slate-500" },
+                                        };
+                    }
+                    @foreach (var b in bars)
+                    {
+                        <div class="flex flex-col items-center gap-2">
+                            <span class="text-xs font-mono text-slate-400">@b.Val</span>
+                            <div class="w-12 @b.Color rounded-t-lg opacity-80 hover:opacity-100 transition-opacity" style="height: @b.Height"></div>
+                            <span class="text-xs font-mono text-slate-500">@b.Label</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* RATE CARDS TAB — RBAC: Admin/Finance only — AJAX: GET /Cost/RateCards *@
+    <div x-show="activeTab === 'rates'">
+        <div class="bg-slate-800/60 border border-slate-700/50 rounded-xl overflow-hidden">
+            <div class="px-5 py-3 border-b border-slate-700/50 flex items-center justify-between">
+                <h2 class="text-sm font-semibold text-slate-200">Carrier Rate Cards</h2>
+                <button class="text-xs bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold px-3 py-1.5 rounded-lg transition-colors">+ Add Rate</button>
+            </div>
+            <table class="w-full">
+                <thead>
+                    <tr class="bg-slate-800/80 border-b border-slate-700/50">
+                        @foreach (var h in new[] { "Carrier", "Zone", "Weight Bracket", "Base Rate", "Fuel Surcharge", "Handling Fee", "Total/kg", "Actions" })
+                        {
+                            <th class="px-4 py-3 text-left text-xs uppercase tracking-widest text-slate-500 font-mono">@h</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700/30">
+                    @{
+                        var rates = new[] {
+                                        new { Carrier="LBC Express", Zone="NCR→Visayas", Weight="0–50kg", Base="₱85/kg", Fuel="12%", Handling="₱150", Total="₱95.20/kg" },
+                                        new { Carrier="LBC Express", Zone="NCR→Mindanao", Weight="0–50kg", Base="₱95/kg", Fuel="12%", Handling="₱150", Total="₱106.40/kg" },
+                                        new { Carrier="J&T Express", Zone="NCR→Luzon", Weight="0–100kg", Base="₱62/kg", Fuel="10%", Handling="₱80", Total="₱68.20/kg" },
+                                        new { Carrier="Ninja Van", Zone="NCR→NCR", Weight="0–30kg", Base="₱45/kg", Fuel="8%", Handling="₱50", Total="₱48.60/kg" },
+                                        };
+                    }
+                    @foreach (var r in rates)
+                    {
+                        <tr class="hover:bg-slate-700/20 transition-colors group">
+                            <td class="px-4 py-3 text-sm text-slate-300 font-semibold">@r.Carrier</td>
+                            <td class="px-4 py-3 text-sm text-slate-400 font-mono">@r.Zone</td>
+                            <td class="px-4 py-3 text-sm text-slate-400 font-mono">@r.Weight</td>
+                            <td class="px-4 py-3 text-sm text-slate-300 font-mono">@r.Base</td>
+                            <td class="px-4 py-3 text-sm text-amber-400 font-mono">@r.Fuel</td>
+                            <td class="px-4 py-3 text-sm text-slate-400 font-mono">@r.Handling</td>
+                            <td class="px-4 py-3 text-sm text-cyan-400 font-mono font-bold">@r.Total</td>
+                            <td class="px-4 py-3">
+                                <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    @* AJAX: PUT /Cost/UpdateRate *@
+                                    <button class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-2.5 py-1 rounded-lg font-mono">Edit</button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @* ANOMALIES TAB — AJAX: GET /Cost/Anomalies *@
+    <div x-show="activeTab === 'anomalies'" class="space-y-3">
+        <p class="text-xs text-slate-500 font-mono">Shipments where actual cost exceeded estimate by more than 15%</p>
+        @{
+            var anomalies = new[] {
+                new { Id="SHP-2024-0071", Carrier="LBC Express", Estimated="₱12,400", Actual="₱16,850", Variance="+₱4,450", Pct="+35.9%" },
+                new { Id="SHP-2024-0064", Carrier="2GO", Estimated="₱8,200", Actual="₱9,880", Variance="+₱1,680", Pct="+20.5%" },
+                new { Id="SHP-2024-0058", Carrier="J&T Express", Estimated="₱5,600", Actual="₱6,550", Variance="+₱950", Pct="+16.9%" },
+                };
+        }
+        @foreach (var a in anomalies)
+        {
+            <div class="bg-slate-800/60 border border-red-500/20 rounded-xl p-4 flex items-center justify-between hover:border-red-500/40 transition-colors">
+                <div class="flex items-center gap-4">
+                    <div class="w-8 h-8 bg-red-500/15 rounded-lg flex items-center justify-center shrink-0">
+                        <svg class="w-4 h-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </div>
+                    <div>
+                        <span class="text-sm font-mono text-amber-400">@a.Id</span>
+                        <span class="text-slate-600 mx-2">·</span>
+                        <span class="text-sm text-slate-400">@a.Carrier</span>
+                    </div>
+                    <div class="flex items-center gap-6">
+                        <div><p class="text-xs text-slate-500 font-mono">Estimated</p><p class="text-sm font-mono text-slate-300">@a.Estimated</p></div>
+                        <div><p class="text-xs text-slate-500 font-mono">Actual</p><p class="text-sm font-mono text-slate-300">@a.Actual</p></div>
+                        <div><p class="text-xs text-slate-500 font-mono">Variance</p><p class="text-sm font-mono font-bold text-red-400">@a.Variance (@a.Pct)</p></div>
+                    </div>
+                </div>
+                <button class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-2 rounded-lg font-mono transition-colors">Review</button>
+            </div>
+        }
+    </div>
+
+    @* INVOICES TAB — AJAX: GET /Cost/Invoices *@
+    <div x-show="activeTab === 'invoices'">
+        <div class="bg-slate-800/60 border border-slate-700/50 rounded-xl overflow-hidden">
+            <table class="w-full">
+                <thead>
+                    <tr class="bg-slate-800/80 border-b border-slate-700/50">
+                        @foreach (var h in new[] { "Invoice #", "Carrier", "Amount", "Issue Date", "Due Date", "Status" })
+                        {
+                            <th class="px-4 py-3 text-left text-xs uppercase tracking-widest text-slate-500 font-mono">@h</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700/30">
+                    @{
+                        var invoices = new[] {
+                                        new { Inv="INV-2024-0341", Carrier="LBC Express", Amount="₱284,500", Issued="2024-12-01", Due="2024-12-31", Status="Pending", StatusColor="text-amber-400 bg-amber-500/10" },
+                                        new { Inv="INV-2024-0330", Carrier="J&T Express", Amount="₱142,800", Issued="2024-11-15", Due="2024-12-15", Status="Paid", StatusColor="text-emerald-400 bg-emerald-500/10" },
+                                        new { Inv="INV-2024-0318", Carrier="2GO", Amount="₱98,400", Issued="2024-11-01", Due="2024-12-01", Status="Overdue", StatusColor="text-red-400 bg-red-500/10" },
+                                        };
+                    }
+                    @foreach (var inv in invoices)
+                    {
+                        <tr class="hover:bg-slate-700/20 transition-colors">
+                            <td class="px-4 py-3 text-sm font-mono text-amber-400">@inv.Inv</td>
+                            <td class="px-4 py-3 text-sm text-slate-300">@inv.Carrier</td>
+                            <td class="px-4 py-3 text-sm font-mono text-slate-200 font-bold">@inv.Amount</td>
+                            <td class="px-4 py-3 text-sm font-mono text-slate-500">@inv.Issued</td>
+                            <td class="px-4 py-3 text-sm font-mono text-slate-400">@inv.Due</td>
+                            <td class="px-4 py-3">
+                                <span class="text-xs font-mono font-semibold px-2.5 py-1 rounded-full @inv.StatusColor">@inv.Status</span>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

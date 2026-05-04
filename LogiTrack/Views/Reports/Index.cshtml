@@ -1,0 +1,227 @@
+@model LogiTrack.Models.ReportsViewModel
+@{
+    ViewData["Title"] = "Reports";
+    ViewData["ActiveNav"] = "reports";
+    Layout = "_ModuleLayout";
+}
+
+<div class="space-y-6">
+    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+            <h1 class="font-display text-4xl font-bold text-slate-900">Reports</h1>
+            <p class="text-slate-600">Operational KPIs, trendlines, and recent activity.</p>
+        </div>
+
+        <form method="get" action="@Url.Action("Index","Reports")" class="flex flex-col sm:flex-row gap-2 sm:items-end">
+            <div>
+                <label class="block text-xs text-slate-500 mb-1">From</label>
+                <input type="date" name="from" value="@Model.From.ToString("yyyy-MM-dd")"
+                       class="bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500" />
+            </div>
+            <div>
+                <label class="block text-xs text-slate-500 mb-1">To</label>
+                <input type="date" name="to" value="@Model.To.ToString("yyyy-MM-dd")"
+                       class="bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500" />
+            </div>
+            <button type="submit"
+                    class="h-10 px-4 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition">
+                Apply
+            </button>
+        </form>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4">
+        <div class="rounded-2xl bg-white border border-slate-200 p-5 xl:col-span-2">
+            <p class="text-xs text-slate-500 uppercase tracking-wider">Shipments</p>
+            <p class="text-3xl font-bold mt-2">@Model.TotalShipments</p>
+            <div class="mt-3 flex flex-wrap gap-2 text-xs">
+                <span class="px-2 py-1 rounded-full bg-slate-100 text-slate-700">Pending: <span class="font-semibold">@Model.PendingShipments</span></span>
+                <span class="px-2 py-1 rounded-full bg-slate-100 text-slate-700">In transit: <span class="font-semibold">@Model.InTransitShipments</span></span>
+                <span class="px-2 py-1 rounded-full bg-slate-100 text-slate-700">Delivered: <span class="font-semibold">@Model.DeliveredShipments</span></span>
+            </div>
+        </div>
+
+        <div class="rounded-2xl bg-white border border-slate-200 p-5">
+            <p class="text-xs text-slate-500 uppercase tracking-wider">Invoices</p>
+            <p class="text-3xl font-bold mt-2">@Model.TotalInvoices</p>
+            <p class="text-xs text-slate-500 mt-2">Total amount</p>
+            <p class="text-lg font-semibold">@Model.TotalInvoicedAmount.ToString("N2")</p>
+        </div>
+
+        <div class="rounded-2xl bg-white border border-slate-200 p-5">
+            <p class="text-xs text-slate-500 uppercase tracking-wider">Pending invoices</p>
+            <p class="text-3xl font-bold mt-2">@Model.PendingInvoices</p>
+        </div>
+
+        <div class="rounded-2xl bg-white border border-slate-200 p-5">
+            <p class="text-xs text-slate-500 uppercase tracking-wider">Paid invoices</p>
+            <p class="text-3xl font-bold mt-2">@Model.PaidInvoices</p>
+        </div>
+
+        <div class="rounded-2xl bg-white border border-slate-200 p-5">
+            <p class="text-xs text-slate-500 uppercase tracking-wider">Tracking events</p>
+            <p class="text-3xl font-bold mt-2">@Model.TotalTrackingEvents</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div class="rounded-2xl bg-white border border-slate-200 p-6">
+            <div class="flex items-start justify-between gap-4 mb-4">
+                <div>
+                    <h2 class="font-display text-2xl font-bold">Shipments trend</h2>
+                    <p class="text-sm text-slate-600">Created shipments per day.</p>
+                </div>
+                <span class="text-xs px-2.5 py-1 rounded-full bg-sky-50 text-sky-700 border border-sky-200">
+                    @Model.From.ToString("MMM dd") – @Model.To.ToString("MMM dd")
+                </span>
+            </div>
+            <canvas id="shipmentsTrendChart" height="120"></canvas>
+        </div>
+
+        <div class="rounded-2xl bg-white border border-slate-200 p-6">
+            <div class="flex items-start justify-between gap-4 mb-4">
+                <div>
+                    <h2 class="font-display text-2xl font-bold">Invoice amount trend</h2>
+                    <p class="text-sm text-slate-600">Issued invoice totals per day.</p>
+                </div>
+            </div>
+            <canvas id="invoiceTrendChart" height="120"></canvas>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div class="rounded-2xl bg-white border border-slate-200 overflow-hidden xl:col-span-1">
+            <div class="px-6 py-4 border-b border-slate-200">
+                <h2 class="font-display text-2xl font-bold">Recent shipments</h2>
+            </div>
+            <div class="divide-y divide-slate-100">
+                @if (Model.RecentShipments.Count == 0)
+                {
+                    <p class="px-6 py-6 text-slate-500">No shipments in this range.</p>
+                }
+                else
+                {
+                    @foreach (var s in Model.RecentShipments)
+                    {
+                        <div class="px-6 py-4 flex items-center justify-between gap-4">
+                            <div class="min-w-0">
+                                <p class="font-semibold text-slate-900 font-mono truncate">@s.ShipmentCode</p>
+                                <p class="text-xs text-slate-500 truncate">@s.Origin → @s.Destination</p>
+                            </div>
+                            <span class="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-700 whitespace-nowrap">@s.Status</span>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+
+        <div class="rounded-2xl bg-white border border-slate-200 overflow-hidden xl:col-span-1">
+            <div class="px-6 py-4 border-b border-slate-200">
+                <h2 class="font-display text-2xl font-bold">Recent invoices</h2>
+            </div>
+            <div class="divide-y divide-slate-100">
+                @if (Model.RecentInvoices.Count == 0)
+                {
+                    <p class="px-6 py-6 text-slate-500">No invoices in this range.</p>
+                }
+                else
+                {
+                    @foreach (var i in Model.RecentInvoices)
+                    {
+                        <div class="px-6 py-4 flex items-center justify-between gap-4">
+                            <div class="min-w-0">
+                                <p class="font-semibold text-slate-900 font-mono truncate">@i.InvoiceCode</p>
+                                <p class="text-xs text-slate-500 truncate">@i.Carrier?.Name · @i.IssueDate.ToString("MMM dd")</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-sm font-semibold text-slate-900">@i.Amount.ToString("N2")</p>
+                                <span class="text-xs px-2 py-1 rounded-full @(i.Status == "Paid" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200")">
+                                    @i.Status
+                                </span>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+
+        <div class="rounded-2xl bg-white border border-slate-200 overflow-hidden xl:col-span-1">
+            <div class="px-6 py-4 border-b border-slate-200">
+                <h2 class="font-display text-2xl font-bold">Recent activity</h2>
+            </div>
+            <div class="divide-y divide-slate-100">
+                @if (Model.RecentActivities.Count == 0)
+                {
+                    <p class="px-6 py-6 text-slate-500">No activity in this range.</p>
+                }
+                else
+                {
+                    @foreach (var a in Model.RecentActivities)
+                    {
+                        <div class="px-6 py-4">
+                            <p class="text-sm text-slate-900">@a.Action</p>
+                            <p class="text-xs text-slate-500 mt-1">@(a.User?.FullName ?? "Unknown") · @a.Timestamp.ToString("MMM dd, hh:mm tt")</p>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const shipmentsCtx = document.getElementById('shipmentsTrendChart');
+            const invoiceCtx = document.getElementById('invoiceTrendChart');
+
+            const shipmentsLabels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ShipmentsByDay.Select(p => p.Day.ToString("MMM dd"))));
+            const shipmentsData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ShipmentsByDay.Select(p => p.Count)));
+            const invoiceLabels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.InvoiceAmountByDay.Select(p => p.Day.ToString("MMM dd"))));
+            const invoiceData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.InvoiceAmountByDay.Select(p => p.Amount)));
+
+            if (shipmentsCtx) {
+                new Chart(shipmentsCtx, {
+                    type: 'line',
+                    data: {
+                        labels: shipmentsLabels,
+                        datasets: [{
+                            label: 'Shipments',
+                            data: shipmentsData,
+                            borderColor: '#0ea5e9',
+                            backgroundColor: 'rgba(14,165,233,0.15)',
+                            fill: true,
+                            tension: 0.35
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+                    }
+                });
+            }
+
+            if (invoiceCtx) {
+                new Chart(invoiceCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: invoiceLabels,
+                        datasets: [{
+                            label: 'Invoice amount',
+                            data: invoiceData,
+                            backgroundColor: 'rgba(37,99,235,0.75)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+            }
+        });
+    </script>
+}
+

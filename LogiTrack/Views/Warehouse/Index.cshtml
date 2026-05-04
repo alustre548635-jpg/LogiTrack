@@ -1,0 +1,303 @@
+﻿@model LogiTrack.Models.WarehouseDashboardViewModel
+@{
+    ViewData["Title"] = "Warehouses";
+    ViewData["ActiveNav"] = "warehouse";
+    Layout = "_ModuleLayout";
+}
+
+@if (Model.SelectedWarehouse == null)
+{
+    <div class="rounded-2xl bg-white border border-slate-200 p-6">
+        <h2 class="font-display text-3xl font-bold">Warehouses</h2>
+        <p class="text-slate-600 mt-2">No active warehouses found.</p>
+    </div>
+}
+else
+{
+    var w = Model.SelectedWarehouse;
+    <div class="space-y-6" x-data="{ tab: 'overview' }">
+        <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+                <h1 class="font-display text-4xl font-bold text-slate-900">Warehouses</h1>
+                <p class="text-slate-600">Capacity, queues, dock schedules, and staff overview.</p>
+            </div>
+
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <form method="get" action="@Url.Action("Index","Warehouse")" class="flex items-center gap-2">
+                    <label class="text-xs text-slate-500">Warehouse</label>
+                    <select name="warehouseId"
+                            class="bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
+                            onchange="this.form.submit()">
+                        @foreach (var wh in Model.Warehouses)
+                        {
+                            <option value="@wh.WarehouseId" selected="@(wh.WarehouseId == w.WarehouseId)">
+                                @wh.Name (@wh.Location)
+                            </option>
+                        }
+                    </select>
+                </form>
+
+                <div class="flex items-center gap-2">
+                    <span class="px-3 py-2 rounded-xl text-sm border border-slate-200 bg-slate-50 text-slate-700">
+                        Utilization: <span class="font-semibold">@Model.UtilizationPct%</span>
+                    </span>
+                    <span class="px-3 py-2 rounded-xl text-sm border border-emerald-200 bg-emerald-50 text-emerald-700">
+                        Active
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4">
+            <div class="rounded-2xl bg-white border border-slate-200 p-5 xl:col-span-2">
+                <p class="text-xs text-slate-500 uppercase tracking-wider">Capacity</p>
+                <p class="text-3xl font-bold mt-2">@Model.UsedCapacity / @Model.TotalCapacity</p>
+                <div class="mt-3 h-2 rounded-full bg-slate-100 overflow-hidden">
+                    <div class="h-2 gradient-accent" style="width: @Math.Clamp(Model.UtilizationPct, 0, 100)%"></div>
+                </div>
+                <p class="text-xs text-slate-500 mt-2">@Model.FreeCapacity free slots</p>
+            </div>
+
+            <div class="rounded-2xl bg-white border border-slate-200 p-5">
+                <p class="text-xs text-slate-500 uppercase tracking-wider">Inbound (Pending)</p>
+                <p class="text-3xl font-bold mt-2">@Model.InboundPending</p>
+            </div>
+
+            <div class="rounded-2xl bg-white border border-slate-200 p-5">
+                <p class="text-xs text-slate-500 uppercase tracking-wider">Outbound (In Transit)</p>
+                <p class="text-3xl font-bold mt-2">@Model.OutboundInTransit</p>
+            </div>
+
+            <div class="rounded-2xl bg-white border border-slate-200 p-5">
+                <p class="text-xs text-slate-500 uppercase tracking-wider">Delivered Today</p>
+                <p class="text-3xl font-bold mt-2">@Model.DeliveredToday</p>
+            </div>
+
+            <div class="rounded-2xl bg-white border border-slate-200 p-5">
+                <p class="text-xs text-slate-500 uppercase tracking-wider">Staff On Shift</p>
+                <p class="text-3xl font-bold mt-2">@Model.OnShiftStaff</p>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+            <button type="button" @@click="tab = 'overview'"
+                    :class="tab === 'overview' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'"
+                    class="px-4 py-2 rounded-xl text-sm font-semibold transition">
+                Overview
+            </button>
+            <button type="button" @@click="tab = 'queues'"
+                    :class="tab === 'queues' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'"
+                    class="px-4 py-2 rounded-xl text-sm font-semibold transition">
+                Queues
+            </button>
+            <button type="button" @@click="tab = 'docks'"
+                    :class="tab === 'docks' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'"
+                    class="px-4 py-2 rounded-xl text-sm font-semibold transition">
+                Docks
+            </button>
+            <button type="button" @@click="tab = 'staff'"
+                    :class="tab === 'staff' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'"
+                    class="px-4 py-2 rounded-xl text-sm font-semibold transition">
+                Staff
+            </button>
+        </div>
+
+        <section x-show="tab === 'overview'" class="space-y-6">
+            <div class="rounded-2xl bg-white border border-slate-200 p-6">
+                <div class="flex items-center justify-between gap-4 mb-4">
+                    <div>
+                        <h2 class="font-display text-2xl font-bold">Zones</h2>
+                        <p class="text-sm text-slate-600">Slot utilization per zone.</p>
+                    </div>
+                </div>
+
+                @if (Model.Zones.Count == 0)
+                {
+                    <p class="text-slate-500">No zones configured for this warehouse.</p>
+                }
+                else
+                {
+                    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                        @foreach (var z in Model.Zones)
+                        {
+                            var pct = z.TotalSlots <= 0 ? 0 : (int)Math.Round((double)z.UsedSlots * 100.0 / z.TotalSlots);
+                            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <p class="text-sm font-semibold text-slate-900">@z.ZoneName</p>
+                                        <p class="text-xs text-slate-500">@z.ZoneType</p>
+                                    </div>
+                                    <span class="text-xs px-2 py-1 rounded-full @(pct >= 90 ? "bg-red-100 text-red-700" : "bg-slate-200 text-slate-700")">@pct%</span>
+                                </div>
+                                <div class="mt-4 h-2 rounded-full bg-white border border-slate-200 overflow-hidden">
+                                    <div class="h-2 @(pct >= 90 ? "bg-red-500" : "bg-sky-500")" style="width: @Math.Clamp(pct, 0, 100)%"></div>
+                                </div>
+                                <div class="mt-3 flex items-center justify-between text-xs text-slate-600">
+                                    <span>@z.UsedSlots / @z.TotalSlots used</span>
+                                    <span class="font-medium">@Math.Max(0, z.TotalSlots - z.UsedSlots) free</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </section>
+
+        <section x-show="tab === 'queues'" class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <div class="rounded-2xl bg-white border border-slate-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                    <div>
+                        <h2 class="font-display text-2xl font-bold">Inbound queue</h2>
+                        <p class="text-sm text-slate-600">Pending shipments assigned to this warehouse.</p>
+                    </div>
+                    <span class="text-xs px-2.5 py-1 rounded-full bg-sky-50 text-sky-700 border border-sky-200">@Model.InboundPending pending</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead>
+                            <tr class="text-left text-slate-500 border-b border-slate-200">
+                                <th class="py-2 px-4">Code</th>
+                                <th class="py-2 px-4">Scheduled</th>
+                                <th class="py-2 px-4">Cargo</th>
+                                <th class="py-2 px-4">Priority</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @if (Model.InboundShipments.Count == 0)
+                            {
+                                <tr><td class="py-4 px-4 text-slate-500" colspan="4">No inbound shipments.</td></tr>
+                            }
+                            else
+                            {
+                                @foreach (var s in Model.InboundShipments)
+                                {
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="py-3 px-4 font-mono text-slate-900">@s.ShipmentCode</td>
+                                        <td class="py-3 px-4 text-slate-700">@s.ScheduledDate.ToString("MMM dd, yyyy")</td>
+                                        <td class="py-3 px-4 text-slate-700">@s.CargoType</td>
+                                        <td class="py-3 px-4">
+                                            <span class="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-700">@s.Priority</span>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="rounded-2xl bg-white border border-slate-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                    <div>
+                        <h2 class="font-display text-2xl font-bold">Outbound</h2>
+                        <p class="text-sm text-slate-600">Shipments currently in transit.</p>
+                    </div>
+                    <span class="text-xs px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">@Model.OutboundInTransit in transit</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead>
+                            <tr class="text-left text-slate-500 border-b border-slate-200">
+                                <th class="py-2 px-4">Code</th>
+                                <th class="py-2 px-4">Origin</th>
+                                <th class="py-2 px-4">Destination</th>
+                                <th class="py-2 px-4">Created</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @if (Model.OutboundShipments.Count == 0)
+                            {
+                                <tr><td class="py-4 px-4 text-slate-500" colspan="4">No outbound shipments.</td></tr>
+                            }
+                            else
+                            {
+                                @foreach (var s in Model.OutboundShipments)
+                                {
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="py-3 px-4 font-mono text-slate-900">@s.ShipmentCode</td>
+                                        <td class="py-3 px-4 text-slate-700">@s.Origin</td>
+                                        <td class="py-3 px-4 text-slate-700">@s.Destination</td>
+                                        <td class="py-3 px-4 text-slate-700">@s.CreatedAt.ToString("MMM dd")</td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section x-show="tab === 'docks'" class="rounded-2xl bg-white border border-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-200">
+                <h2 class="font-display text-2xl font-bold">Dock schedules (today)</h2>
+                <p class="text-sm text-slate-600">Scheduled dock usage for @w.Name.</p>
+            </div>
+            <div class="p-6">
+                @if (Model.DockSchedules.Count == 0)
+                {
+                    <p class="text-slate-500">No dock schedules for today.</p>
+                }
+                else
+                {
+                    <div class="space-y-3">
+                        @foreach (var d in Model.DockSchedules)
+                        {
+                            <div class="rounded-xl border border-slate-200 p-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <p class="text-sm font-semibold text-slate-900">Dock D-@d.DockNumber · @d.Shipment?.ShipmentCode</p>
+                                    <p class="text-xs text-slate-600">@d.StartTime.ToString("hh:mm tt") – @d.EndTime.ToString("hh:mm tt")</p>
+                                </div>
+                                <span class="text-xs px-2 py-1 rounded-full border @(d.Status == "In Progress" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-50 text-slate-700 border-slate-200")">
+                                    @d.Status
+                                </span>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </section>
+
+        <section x-show="tab === 'staff'" class="rounded-2xl bg-white border border-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-200">
+                <h2 class="font-display text-2xl font-bold">Staff on shift</h2>
+                <p class="text-sm text-slate-600">Current assignments for @w.Name.</p>
+            </div>
+            <div class="p-6">
+                @if (Model.StaffOnShift.Count == 0)
+                {
+                    <p class="text-slate-500">No staff currently on shift.</p>
+                }
+                else
+                {
+                    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                        @foreach (var s in Model.StaffOnShift)
+                        {
+                            var initials = string.Join("", (s.FullName ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(p => p[0])).ToUpperInvariant();
+                            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-sm">
+                                        @initials
+                                    </div>
+                                    <div class="min-w-0">
+                                        <p class="font-semibold text-slate-900 truncate">@s.FullName</p>
+                                        <p class="text-xs text-slate-600 truncate">@s.ShiftType</p>
+                                    </div>
+                                </div>
+                                <div class="mt-4 space-y-2 text-sm text-slate-700">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-slate-500">Zone</span>
+                                        <span class="font-medium">@(!string.IsNullOrWhiteSpace(s.Zone) ? s.Zone : "—")</span>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-slate-500">Task</span>
+                                        <span class="font-medium truncate max-w-[12rem] text-right">@(!string.IsNullOrWhiteSpace(s.CurrentTask) ? s.CurrentTask : "—")</span>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </section>
+    </div>
+}
