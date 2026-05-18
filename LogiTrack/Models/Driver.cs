@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace LogiTrack.Models
@@ -27,6 +27,17 @@ namespace LogiTrack.Models
 
         [StringLength(30)]
         public string Status { get; set; } = "Available";
+
+        public int? UserId { get; set; }
+        
+        [ForeignKey("UserId")]
+        public User? User { get; set; }
+
+        public DateTime? LicenseExpiry { get; set; }
+
+        public decimal OnTimeDeliveryRate { get; set; } = 100;
+
+        public int SafetyScore { get; set; } = 100;
 
         public int? AssignedWarehouseId { get; set; }
 

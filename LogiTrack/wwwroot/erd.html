@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LogiTrack - Entity Relationship Diagram</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #ffffff;
+            color: #1e293b;
+            min-height: 100vh;
+        }
+
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            width: 100%;
+            padding: 16px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .header h1 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .header .subtitle {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 2px;
+        }
+
+        .actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: #0f172a;
+            color: #fff;
+            border: none;
+        }
+
+        .btn-secondary {
+            background: #fff;
+            color: #475569;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        #capture-area {
+            background: #ffffff;
+            padding: 50px;
+            min-width: fit-content;
+        }
+
+        .capture-header {
+            margin-bottom: 30px;
+            border-bottom: 2px solid #f1f5f9;
+            padding-bottom: 20px;
+        }
+
+        .capture-title {
+            font-size: 28px;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: -0.025em;
+        }
+
+        .capture-subtitle {
+            font-size: 13px;
+            color: #64748b;
+            margin-top: 4px;
+            font-weight: 500;
+        }
+
+        .mermaid {
+            display: flex;
+            justify-content: center;
+        }
+
+        @media print {
+            .header { display: none; }
+            #capture-area { padding: 0; }
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #0f172a;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            display: none;
+            z-index: 2000;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div>
+        <h1>LogiTrack — Database Schema</h1>
+        <p class="subtitle">Complete Relational ERD (14 Tables)</p>
+    </div>
+    <div class="actions">
+        <button class="btn btn-secondary" onclick="window.print()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
+            PDF
+        </button>
+        <button class="btn btn-primary" id="downloadBtn" onclick="downloadPNG()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            Download PNG
+        </button>
+    </div>
+</div>
+
+<div id="capture-area">
+    <div class="capture-header">
+        <div class="capture-title">LogiTrack System ERD</div>
+        <div class="capture-subtitle">Full Logistics & Distribution Management Schema • 14 Tables • Relational Map</div>
+    </div>
+
+    <div class="mermaid" id="erd-diagram">
+erDiagram
+    Users {
+        int UserId PK
+        string FullName
+        string Email
+        string PasswordHash
+        string Role
+        string PhoneNumber
+        bool IsActive
+        datetime CreatedAt
+        datetime LastLogin
+    }
+    Carriers {
+        int CarrierId PK
+        string Name
+        string ContactPerson
+        string ContactEmail
+        string ContactPhone
+        bool IsActive
+    }
+    Warehouses {
+        int WarehouseId PK
+        string Name
+        string Location
+        int TotalCapacity
+        int UsedCapacity
+        bool IsActive
+    }
+    WarehouseZones {
+        int ZoneId PK
+        int WarehouseId FK
+        string ZoneName
+        int TotalSlots
+        int UsedSlots
+        string ZoneType
+    }
+    Drivers {
+        int DriverId PK
+        string FullName
+        string LicenseNumber
+        string VehiclePlate
+        string VehicleType
+        string Status
+        int UserId FK
+        datetime LicenseExpiry
+        decimal OnTimeDeliveryRate
+        int SafetyScore
+        int AssignedWarehouseId FK
+    }
+    Staff {
+        int StaffId PK
+        string FullName
+        int UserId FK
+        int WarehouseId FK
+        string Zone
+        string CurrentTask
+        bool IsOnShift
+        string ShiftType
+    }
+    Shipments {
+        int ShipmentId PK
+        string ShipmentCode
+        int CreatedByUserId FK
+        int CarrierId FK
+        int WarehouseId FK
+        string Origin
+        string Destination
+        string CargoType
+        decimal Weight
+        decimal Volume
+        string Priority
+        string Status
+        datetime ScheduledDate
+        string SpecialHandling
+        string Notes
+        int RouteId FK
+        decimal ShippingFee
+        decimal EstimatedCost
+        datetime CreatedAt
+    }
+    Routes {
+        int RouteId PK
+        string RouteNumber
+        int DriverId FK
+        string StartHub
+        string EndHub
+        string Waypoints
+        string VehicleType
+        decimal LoadCapacity
+        decimal DistanceKm
+        int EstimatedMinutes
+        decimal FuelCostEstimate
+        decimal TollCost
+        string OptimizationType
+        string Status
+        datetime CreatedAt
+    }
+    FreightRateCards {
+        int RateCardId PK
+        int CarrierId FK
+        string Zone
+        string WeightBracket
+        decimal BaseRatePerKg
+        decimal FuelSurchargePercent
+        decimal HandlingFee
+        datetime EffectiveDate
+    }
+    Invoices {
+        int InvoiceId PK
+        string InvoiceCode
+        int CarrierId FK
+        decimal Amount
+        datetime IssueDate
+        datetime DueDate
+        string Status
+        datetime PaidAt
+    }
+    Payments {
+        int PaymentId PK
+        int ShipmentId FK
+        decimal Amount
+        string Status
+        string PaymentMethod
+        string ReferenceNumber
+        datetime PaymentDate
+        datetime CreatedAt
+        string Notes
+    }
+    DockSchedules {
+        int DockScheduleId PK
+        int WarehouseId FK
+        int ShipmentId FK
+        int DockNumber
+        datetime StartTime
+        datetime EndTime
+        string Status
+    }
+    TrackingEvents {
+        int EventId PK
+        int ShipmentId FK
+        int DriverId FK
+        string EventType
+        string Location
+        decimal Latitude
+        decimal Longitude
+        string Notes
+        datetime EventTime
+    }
+    ActivityLogs {
+        int LogId PK
+        int UserId FK
+        string Action
+        string TableAffected
+        string IPAddress
+        datetime Timestamp
+    }
+
+    Users ||--o{ Shipments : "creates"
+    Users ||--o| Drivers : "linked"
+    Users ||--o| Staff : "linked"
+    Users ||--o{ ActivityLogs : "audited"
+    Carriers ||--o{ Shipments : "ships"
+    Carriers ||--o{ FreightRateCards : "rates"
+    Carriers ||--o{ Invoices : "billed"
+    Warehouses ||--o{ WarehouseZones : "has"
+    Warehouses ||--o{ Staff : "hub"
+    Warehouses ||--o{ Drivers : "base"
+    Warehouses ||--o{ Shipments : "stock"
+    Warehouses ||--o{ DockSchedules : "docks"
+    Shipments ||--o{ TrackingEvents : "events"
+    Shipments ||--o{ Payments : "pays"
+    Shipments ||--o{ DockSchedules : "slot"
+    Shipments }o--o| Routes : "path"
+    Routes }o--o| Drivers : "drive"
+    Drivers ||--o{ TrackingEvents : "logs"
+    </div>
+</div>
+
+<div class="toast" id="toast">✅ Image saved!</div>
+
+<script>
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: 'default',
+        er: { diagramPadding: 40, layoutDirection: 'TB', minEntityWidth: 200, useMaxWidth: false },
+        themeVariables: {
+            primaryColor: '#f8fafc',
+            primaryBorderColor: '#cbd5e1',
+            primaryTextColor: '#0f172a',
+            lineColor: '#64748b',
+            secondaryColor: '#f1f5f9'
+        }
+    });
+
+    async function downloadPNG() {
+        const btn = document.getElementById('downloadBtn');
+        btn.innerHTML = '⏳ Processing...';
+        btn.disabled = true;
+
+        try {
+            const area = document.getElementById('capture-area');
+            const canvas = await html2canvas(area, {
+                backgroundColor: '#ffffff',
+                scale: 2.5,
+                logging: false,
+                useCORS: true
+            });
+
+            canvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'LogiTrack_ERD.png';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                
+                const toast = document.getElementById('toast');
+                toast.style.display = 'block';
+                setTimeout(() => toast.style.display = 'none', 3000);
+            }, 'image/png');
+
+        } catch (e) {
+            console.error(e);
+            alert('Download failed. Use the PDF button instead.');
+        } finally {
+            btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg> Download PNG';
+            btn.disabled = false;
+        }
+    }
+</script>
+</body>
+</html>

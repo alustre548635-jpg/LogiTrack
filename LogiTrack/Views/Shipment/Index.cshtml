@@ -1,858 +1,869 @@
 @model LogiTrack.Models.ShipmentPlanningViewModel
 @{
     ViewData["Title"] = "Shipment Planning";
-    ViewData["ActiveNav"] = "Shipment";
-    Layout = null;
+    ViewData["ActiveNav"] = "shipment";
+    Layout = "_ModuleLayout";
     var currentRole = (ViewBag.UserRole?.ToString() ?? string.Empty).Trim();
-    var canCancelShipment = currentRole.Equals("Admin", StringComparison.OrdinalIgnoreCase)
-        || currentRole.Equals("Super Admin", StringComparison.OrdinalIgnoreCase)
-        || currentRole.Equals("Manager", StringComparison.OrdinalIgnoreCase)
-        || currentRole.Equals("Logistics Manager", StringComparison.OrdinalIgnoreCase);
+    var isManagerOrAdmin = currentRole.Equals("Admin", StringComparison.OrdinalIgnoreCase)
+        || currentRole.Equals("Manager", StringComparison.OrdinalIgnoreCase);
 }
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LogiTrack - Shipment Planning</title>
-    <link rel="icon" type="image/png" href="@Url.Content("~/Images/Logo.png")" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'DM Sans', sans-serif; }
-        .font-display { font-family: 'Barlow Condensed', sans-serif; }
-        .sidebar-overlay { transition: opacity 0.3s ease; }
-        .sidebar-drawer { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-    </style>
-</head>
-<body class="bg-slate-50 text-slate-900" x-data="{ sidebarOpen: false }">
-<div class="min-h-screen flex flex-col">
+<div x-data="shipmentModule()" class="p-6 lg:p-8 space-y-6 min-h-screen bg-[#F5F7FA]">
 
-    <!-- Top Header Bar with Burger Menu -->
-    <header class="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 py-3 flex items-center gap-4">
-        <button type="button" @@click="sidebarOpen = true" id="shipment-burger-btn"
-                class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-900 text-white hover:bg-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500/40">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-        </button>
-        <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center">
-                <img src="@Url.Content("~/Images/Logo.png")" alt="LogiTrack" class="object-contain w-full h-full" />
-            </div>
-            <div>
-                <h1 class="font-display text-lg font-bold leading-tight text-slate-900">@ViewBag.UserRole</h1>
-                <p class="text-xs text-slate-500 leading-tight">Welcome, <span class="font-semibold text-slate-700">@ViewBag.UserFullName</span></p>
-            </div>
-        </div>
-    </header>
-
-    <!-- Sidebar Overlay -->
-    <div x-show="sidebarOpen"
-         x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-         x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
-         @@click="sidebarOpen = false"
-         class="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
-         style="display: none;"></div>
-
-    <!-- Sidebar Drawer -->
-    <aside x-show="sidebarOpen"
-           x-transition:enter="transition ease-out duration-300" x-transition:enter-start="-translate-x-full" x-transition:enter-end="translate-x-0"
-           x-transition:leave="transition ease-in duration-200" x-transition:leave-start="translate-x-0" x-transition:leave-end="-translate-x-full"
-           class="fixed top-0 left-0 z-50 h-full w-72 bg-slate-900 text-slate-100 p-6 overflow-y-auto shadow-2xl"
-           style="display: none;" id="shipment-sidebar">
-
-        <!-- Close button -->
-        <button type="button" @@click="sidebarOpen = false"
-                class="absolute top-4 right-4 w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center transition-colors">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-        </button>
-
-        <div class="mb-8">
-            <div class="w-20 h-20 rounded-2xl overflow-hidden bg-white/10 border border-slate-700 flex items-center justify-center mb-4">
-                <img src="@Url.Content("~/Images/Logo.png")" alt="LogiTrack" class="object-contain w-full h-full" />
-            </div>
-            <h1 class="font-display text-3xl font-bold">@ViewBag.UserRole</h1>
-            <p class="text-sm text-slate-300">Welcome, <span class="font-bold text-white">@ViewBag.UserFullName</span></p>
-        </div>
-
-        <nav class="space-y-2 text-sm">
-            @{
-                var assignedModules = (List<string>)ViewBag.AssignedModules;
-            }
-            @if (assignedModules.Count == 0)
-            {
-                <p class="px-3 py-2 text-slate-300 text-xs">No modules assigned.</p>
-            }
-            else
-            {
-                @foreach (var module in assignedModules)
-                {
-                    var target = "#";
-                    var isActive = false;
-                    if (module.Equals("Dashboard", StringComparison.OrdinalIgnoreCase))
-                    {
-                        target = Url.Action("Index", "Client") ?? "#";
-                    }
-                    else if (module.Equals("Shipments", StringComparison.OrdinalIgnoreCase))
-                    {
-                        target = Url.Action("Index", "Shipment") ?? "#";
-                        isActive = true;
-                    }
-                    else if (module.Equals("Routes", StringComparison.OrdinalIgnoreCase))
-                    {
-                        target = Url.Action("Index", "Route") ?? "#";
-                    }
-                    else if (module.Equals("Warehouses", StringComparison.OrdinalIgnoreCase))
-                    {
-                        target = Url.Action("Index", "Warehouse") ?? "#";
-                    }
-                    else if (module.Equals("Tracking", StringComparison.OrdinalIgnoreCase))
-                    {
-                        target = Url.Action("Index", "Tracking") ?? "#";
-                    }
-                    else if (module.Equals("Freight Costs", StringComparison.OrdinalIgnoreCase))
-                    {
-                        target = Url.Action("Index", "FreightCost") ?? "#";
-                    }
-                    else if (module.Equals("Audit Logs", StringComparison.OrdinalIgnoreCase))
-                    {
-                        target = Url.Action("Index", "Client") + "#logs";
-                    }
-                    <a href="@target" class="flex items-center gap-2 px-3 py-2 rounded-lg @(isActive ? "bg-slate-800 font-semibold" : "hover:bg-slate-800") transition">
-                        @if (module.Equals("Dashboard", StringComparison.OrdinalIgnoreCase))
-                        {
-                            <svg class="w-4 h-4 text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h7v5H4zM13 6h7v5h-7zM4 13h7v5H4zM13 13h7v5h-7z" /></svg>
-                        }
-                        else if (module.Equals("Shipments", StringComparison.OrdinalIgnoreCase))
-                        {
-                            <svg class="w-4 h-4 text-emerald-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20 13V7a2 2 0 00-2-2h-3m5 8l-2.5 5H6.5L4 13m16 0H4m16 0l-3-6H7l-3 6" /></svg>
-                        }
-                        else if (module.Equals("Routes", StringComparison.OrdinalIgnoreCase))
-                        {
-                            <svg class="w-4 h-4 text-amber-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A2 2 0 013 15.382V6.618a2 2 0 011.105-1.789L9 2m0 18l6-3m-6 3V2m6 15l5.447-2.724A2 2 0 0021 12.382V3.618a2 2 0 00-1.105-1.789L15 2m0 15V2m0 0L9 5" /></svg>
-                        }
-                        else if (module.Equals("Warehouses", StringComparison.OrdinalIgnoreCase))
-                        {
-                            <svg class="w-4 h-4 text-violet-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M5 21V7l7-4 7 4v14M9 11h6m-6 4h6" /></svg>
-                        }
-                        else if (module.Equals("Tracking", StringComparison.OrdinalIgnoreCase))
-                        {
-                            <svg class="w-4 h-4 text-sky-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A2 2 0 013 15.382V6.618a2 2 0 011.105-1.789L9 2m0 18l6-3m-6 3V2m6 15l5.447-2.724A2 2 0 0021 12.382V3.618a2 2 0 00-1.105-1.789L15 2m0 15V2m0 0L9 5" /></svg>
-                        }
-                        else if (module.Equals("Freight Costs", StringComparison.OrdinalIgnoreCase))
-                        {
-                            <svg class="w-4 h-4 text-rose-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                        }
-                        else if (module.Equals("Reports", StringComparison.OrdinalIgnoreCase))
-                        {
-                            <svg class="w-4 h-4 text-cyan-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-6m3 6V7m3 10v-4M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-                        }
-                        else if (module.Equals("System Settings", StringComparison.OrdinalIgnoreCase))
-                        {
-                            <svg class="w-4 h-4 text-fuchsia-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-1.14 1.603-1.14 1.902 0a1 1 0 001.516.59c.996-.63 2.306.68 1.676 1.676a1 1 0 00.59 1.516c1.14.3 1.14 1.603 0 1.902a1 1 0 00-.59 1.516c.63.996-.68 2.306-1.676 1.676a1 1 0 00-1.516.59c-.3 1.14-1.603 1.14-1.902 0a1 1 0 00-1.516-.59c-.996.63-2.306-.68-1.676-1.676a1 1 0 00-.59-1.516c-1.14-.3-1.14-1.603 0-1.902a1 1 0 00.59-1.516c-.63-.996.68-2.306 1.676-1.676a1 1 0 001.516-.59zM12 10a2 2 0 100 4 2 2 0 000-4z" /></svg>
-                        }
-                        else if (module.Equals("Audit Logs", StringComparison.OrdinalIgnoreCase))
-                        {
-                            <svg class="w-4 h-4 text-lime-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-6m3 6V7m3 10v-4M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-                        }
-                        else
-                        {
-                            <svg class="w-4 h-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
-                        }
-                        <span>@module</span>
-                    </a>
-                }
-            }
-        </nav>
-
-        <div class="mt-10 pt-6 border-t border-slate-700">
-            <a href="@Url.Action("Logout", "Account")" class="inline-flex w-full items-center justify-center px-4 py-2 rounded-lg bg-sky-600 text-white font-semibold hover:bg-sky-500 transition">
-                Logout
-            </a>
-        </div>
-    </aside>
-
-    <main class="flex-1">
-<div x-data="{
-        showCreatePanel: false,
-        showEditPanel: false,
-        searchText: '',
-        statusFilter: '',
-        carrierFilter: '',
-        dateFilter: '',
-        rowMatches(row) {
-            const text = (row.dataset.search || '').toLowerCase();
-            const status = (row.dataset.status || '').toLowerCase();
-            const carrier = (row.dataset.carrier || '').toLowerCase();
-            const date = row.dataset.date || '';
-            const search = this.searchText.toLowerCase();
-
-            const searchOk = !search || text.includes(search);
-            const statusOk = !this.statusFilter || status === this.statusFilter.toLowerCase();
-            const carrierOk = !this.carrierFilter || carrier === this.carrierFilter.toLowerCase();
-            const dateOk = !this.dateFilter || date === this.dateFilter;
-            return searchOk && statusOk && carrierOk && dateOk;
-        },
-        openEdit(el) {
-            const row = el.closest('tr');
-            document.getElementById('editShipmentId').value = row.dataset.editId;
-            document.getElementById('editOrigin').value = row.dataset.editOrigin;
-            document.getElementById('editDestination').value = row.dataset.editDest;
-            document.getElementById('editCargoType').value = row.dataset.editCargo;
-            document.getElementById('editWeight').value = row.dataset.editWeight;
-            document.getElementById('editScheduledDate').value = row.dataset.editDate;
-            document.getElementById('editCarrierId').value = row.dataset.editCarrier;
-            document.getElementById('editShipmentCode').textContent = 'Editing ' + row.dataset.editCode;
-            this.showEditPanel = true;
-        },
-        clearFilters() {
-            this.searchText = '';
-            this.statusFilter = '';
-            this.carrierFilter = '';
-            this.dateFilter = '';
-        }
-    }"
-     class="space-y-6 p-6 max-w-7xl mx-auto">
-
-    @* ===== PAGE HEADER ===== *@
-    <div class="flex items-center justify-between">
+    @* PAGE HEADER (matches shipment planning dashboard spec) *@
+    <div class="flex flex-wrap items-center justify-between gap-6">
         <div>
-            <h1 class="font-display text-4xl font-bold text-slate-900">Shipment Planning</h1>
-            <p class="text-sm text-slate-600 mt-1">@DateTime.Now.ToString("dddd, MMMM dd yyyy")</p>
+            <h1 class="font-display text-3xl sm:text-4xl font-black text-slate-900 uppercase tracking-tight">Shipment planning</h1>
+            <p class="text-sm text-slate-500 font-medium mt-1">@DateTime.Now.ToString("dddd, MMMM dd yyyy")</p>
         </div>
         <div class="flex items-center gap-3">
-            <button class="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 text-sm px-4 py-2.5 rounded-lg transition-all font-semibold">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" /></svg>
-                Export
-            </button>
-            <button @@click="showCreatePanel = true"
-                    class="flex items-center gap-2 bg-sky-600 hover:bg-sky-500 text-white font-semibold text-sm px-5 py-2.5 rounded-lg transition-all hover:shadow-lg hover:shadow-sky-500/20">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M12 4v16m8-8H4" /></svg>
+            <form action="@Url.Action("Export", "Shipment")" method="post" class="inline">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="px-5 py-2.5 border border-slate-300 bg-white text-slate-700 text-sm font-semibold rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm">
+                    <svg class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                    Export CSV
+                </button>
+            </form>
+            @if (isManagerOrAdmin)
+            {
+            <button type="button" @@click="openCreate()" class="px-5 py-2.5 bg-[#0088CC] hover:bg-[#0077b3] text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-md shadow-[#0088CC]/25">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
                 New Shipment
             </button>
-        </div>
-    </div>
-
-    @* ===== KPI STRIP ===== *@
-    <div class="grid grid-cols-4 gap-4">
-        @{
-            var kpis = new[] {
-                new { Label="Total Today", Value=Model.TotalToday.ToString(), Delta="Live", Up=true, Icon="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2", GradientFrom="from-blue-50", GradientTo="to-blue-100/50", AccentColor="text-blue-600" },
-                new { Label="Pending Approval", Value=Model.PendingApproval.ToString(), Delta="Queue", Up=false, Icon="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z", GradientFrom="from-orange-50", GradientTo="to-orange-100/50", AccentColor="text-orange-600" },
-                new { Label="In Transit", Value=Model.InTransit.ToString(), Delta="Active", Up=true, Icon="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1", GradientFrom="from-cyan-50", GradientTo="to-cyan-100/50", AccentColor="text-cyan-600" },
-                new { Label="Completed", Value=Model.Completed.ToString(), Delta="Delivered", Up=true, Icon="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z", GradientFrom="from-emerald-50", GradientTo="to-emerald-100/50", AccentColor="text-emerald-600" },
-            }.ToList();
-        }
-        @foreach (var kpi in kpis)
-        {
-            <div class="bg-gradient-to-br @kpi.GradientFrom @kpi.GradientTo border border-slate-200 rounded-2xl p-6 hover:shadow-md transition-all hover:scale-[1.01]">
-                <div class="flex items-start justify-between mb-4">
-                    <p class="text-xs text-slate-500 uppercase tracking-wider">@kpi.Label</p>
-                    <svg class="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                        <path d="@kpi.Icon" />
-                    </svg>
-                </div>
-                <p class="text-3xl font-bold @kpi.AccentColor">@kpi.Value</p>
-                <div class="flex items-center gap-1.5 mt-3">
-                    @if (kpi.Up)
-                    {
-                        <svg class="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M5 15l7-7 7 7" /></svg>
-                        <span class="text-xs text-emerald-600">@kpi.Delta</span>
-                    }
-                    else
-                    {
-                        <svg class="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M19 9l-7 7-7-7" /></svg>
-                        <span class="text-xs text-red-600">@kpi.Delta</span>
-                    }
-                </div>
-            </div>
-        }
-    </div>
-
-    @* ===== FILTERS BAR ===== *@
-    <div class="flex items-center gap-3 flex-wrap bg-white border border-slate-200 rounded-lg p-4">
-        <div class="relative flex-1 min-w-64">
-            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
-            <input type="text" placeholder="Search by ID, carrier, destination…"
-                   x-model="searchText"
-                   class="w-full bg-slate-50 border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 text-slate-900 placeholder:text-slate-500 rounded-lg pl-10 pr-4 py-2 text-sm outline-none transition-all" />
-        </div>
-        <select x-model="statusFilter" class="bg-slate-50 border border-slate-300 text-slate-900 rounded-lg px-3 py-2 text-sm outline-none focus:border-sky-500">
-            <option value="">All Status</option>
-            <option>Pending</option>
-            <option>In Transit</option>
-            <option>Delivered</option>
-            <option>Completed</option>
-            <option>Cancelled</option>
-        </select>
-        <select x-model="carrierFilter" class="bg-slate-50 border border-slate-300 text-slate-900 rounded-lg px-3 py-2 text-sm outline-none focus:border-sky-500">
-            <option value="">All Carriers</option>
-            @foreach (var carrier in Model.Carriers)
-            {
-                <option>@carrier.Name</option>
             }
-        </select>
-        <input type="date" x-model="dateFilter" class="bg-slate-50 border border-slate-300 text-slate-900 rounded-lg px-3 py-2 text-sm outline-none focus:border-sky-500" />
-        <button type="button" @@click="clearFilters()" class="text-sm text-sky-600 hover:text-sky-700 transition-colors font-semibold">Clear filters</button>
+        </div>
     </div>
 
-    @* ===== SHIPMENT TABLE ===== *@
+    @* KPI CARDS (click to filter table) *@
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <button type="button" @@click="applyKpiFilter('all')" class="rounded-xl border border-slate-200/80 bg-sky-50/60 p-5 shadow-sm relative overflow-hidden text-left cursor-pointer hover:shadow-md hover:border-sky-300/80 transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0088CC]">
+            <svg class="w-5 h-5 text-sky-400 absolute top-4 right-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest pr-8">Total Today</p>
+            <p class="mt-2 text-4xl font-bold text-[#0088CC] tabular-nums" x-text="kpis.totalToday">@Model.TotalToday</p>
+            <p class="mt-3 text-xs font-semibold text-emerald-600 flex items-center gap-1"><span class="text-emerald-500">↑</span> Live</p>
+        </button>
+        <button type="button" @@click="applyKpiFilter('Pending')" class="rounded-xl border border-orange-100 bg-orange-50/50 p-5 shadow-sm relative overflow-hidden text-left cursor-pointer hover:shadow-md hover:border-orange-200 transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400">
+            <svg class="w-5 h-5 text-orange-300 absolute top-4 right-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest pr-8">Pending</p>
+            <p class="mt-2 text-4xl font-bold text-orange-500 tabular-nums" x-text="kpis.pending">@Model.PendingApproval</p>
+            <p class="mt-3 text-xs font-semibold text-red-500 flex items-center gap-1"><span>↓</span> Queue</p>
+        </button>
+        <button type="button" @@click="applyKpiFilter('In Transit')" class="rounded-xl border border-teal-100 bg-teal-50/50 p-5 shadow-sm relative overflow-hidden text-left cursor-pointer hover:shadow-md hover:border-teal-200 transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+            <svg class="w-5 h-5 text-teal-500 absolute top-4 right-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" /></svg>
+            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest pr-8">In Transit</p>
+            <p class="mt-2 text-4xl font-bold text-teal-600 tabular-nums" x-text="kpis.inTransit">@Model.InTransit</p>
+            <p class="mt-3 text-xs font-semibold text-emerald-600 flex items-center gap-1"><span class="text-emerald-500">↑</span> Active</p>
+        </button>
+        <button type="button" @@click="applyKpiFilter('Completed')" class="rounded-xl border border-emerald-100 bg-emerald-50/50 p-5 shadow-sm relative overflow-hidden text-left cursor-pointer hover:shadow-md hover:border-emerald-200 transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+            <svg class="w-5 h-5 text-emerald-400 absolute top-4 right-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest pr-8">Completed</p>
+            <p class="mt-2 text-4xl font-bold text-emerald-600 tabular-nums" x-text="kpis.completed">@Model.Completed</p>
+            <p class="mt-3 text-xs font-semibold text-emerald-600 flex items-center gap-1"><span class="text-emerald-500">↑</span> Delivered</p>
+        </button>
+    </div>
+
+    @* FILTER BAR *@
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-wrap items-center gap-3">
+        <div class="relative flex-1 min-w-[220px]">
+            <input type="text" x-model="searchText" placeholder="Search by ID, carrier, destination..." class="w-full bg-white border border-slate-200 rounded-lg pl-10 pr-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#0088CC] focus:ring-1 focus:ring-[#0088CC]/30" />
+            <svg class="w-4 h-4 text-slate-400 absolute left-3 top-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+        </div>
+        <div class="relative">
+            <select x-model="statusFilter" @@change="statusFilterGroup = ''" class="appearance-none bg-white border border-slate-200 rounded-lg pl-3 pr-9 py-2.5 text-sm text-slate-700 outline-none focus:border-[#0088CC] focus:ring-1 focus:ring-[#0088CC]/30 min-w-[140px]">
+                <option value="">All Status</option>
+                <option value="Pending">Pending</option>
+                <option value="In Transit">In Transit</option>
+                <option value="Delivered">Delivered</option>
+                <option value="Completed">Completed</option>
+                <option value="Cancelled">Cancelled</option>
+            </select>
+            <svg class="w-4 h-4 text-slate-400 absolute right-2.5 top-3 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+        </div>
+        <div class="relative">
+            <select x-model="carrierFilter" class="appearance-none bg-white border border-slate-200 rounded-lg pl-3 pr-9 py-2.5 text-sm text-slate-700 outline-none focus:border-[#0088CC] focus:ring-1 focus:ring-[#0088CC]/30 min-w-[150px]">
+                <option value="">All Carriers</option>
+                <template x-for="c in carriers" :key="c.CarrierId || c.carrierId">
+                    <option :value="c.Name || c.name" x-text="c.Name || c.name"></option>
+                </template>
+            </select>
+            <svg class="w-4 h-4 text-slate-400 absolute right-2.5 top-3 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+        </div>
+        <div class="relative min-w-[160px]">
+            <input type="date" x-model="dateFilter" class="w-full bg-white border border-slate-200 rounded-lg pl-3 pr-3 py-2.5 text-sm text-slate-700 outline-none focus:border-[#0088CC] focus:ring-1 focus:ring-[#0088CC]/30" title="Filter by scheduled date" />
+        </div>
+        <button type="button" @@click="clearFilters()" class="text-sm font-semibold text-[#0088CC] hover:text-[#0077b3] ml-auto">Clear filters</button>
+    </div>
+
+    @* DATA TABLE *@
     <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
         <div class="overflow-x-auto">
-            <table class="w-full">
+            <table class="w-full text-left border-collapse">
                 <thead>
                     <tr class="bg-slate-50 border-b border-slate-200">
-                        <th class="px-6 py-4 text-left text-xs text-slate-500 font-semibold">
-                            <div class="flex items-center gap-1.5 cursor-pointer hover:text-sky-600 transition-colors">Shipment ID <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M8 9l4-4 4 4m0 6l-4 4-4-4" /></div>
+                        <th class="px-6 py-4">
+                            <button type="button" @@click="toggleSortShipmentId()" class="inline-flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-[#0088CC] transition-colors">
+                                Shipment ID
+                                <span class="inline-flex flex-col leading-none text-[#0088CC]">
+                                    <svg class="w-3 h-3 -mb-0.5 transition-opacity" :class="sortShipmentAsc ? 'opacity-100' : 'opacity-30'" fill="currentColor" viewBox="0 0 12 12"><path d="M6 2L2 7h8L6 2z" /></svg>
+                                    <svg class="w-3 h-3 transition-opacity" :class="!sortShipmentAsc ? 'opacity-100' : 'opacity-30'" fill="currentColor" viewBox="0 0 12 12"><path d="M6 10l4-5H2l4 5z" /></svg>
+                                </span>
+                            </button>
                         </th>
-                        <th class="px-6 py-4 text-left text-xs text-slate-500 font-semibold">Route</th>
-                        <th class="px-6 py-4 text-left text-xs text-slate-500 font-semibold">Carrier</th>
-                        <th class="px-6 py-4 text-left text-xs text-slate-500 font-semibold">Cargo Type</th>
-                        <th class="px-6 py-4 text-left text-xs text-slate-500 font-semibold">Weight</th>
-                        <th class="px-6 py-4 text-left text-xs text-slate-500 font-semibold">Priority</th>
-                        <th class="px-6 py-4 text-left text-xs text-slate-500 font-semibold">Status</th>
-                        <th class="px-6 py-4 text-left text-xs text-slate-500 font-semibold">Sched. Date</th>
-                        <th class="px-6 py-4 text-left text-xs text-slate-500 font-semibold">Actions</th>
+                        <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Route</th>
+                        <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Carrier</th>
+                        <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">Cargo Type</th>
+                        <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">Weight</th>
+                        <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-center">Status</th>
+                        <th class="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-200">
-                    @if (Model.Shipments.Count == 0)
-                    {
-                        <tr>
-                            <td colspan="9" class="px-6 py-8 text-center text-slate-500 text-sm">No shipment records found.</td>
-                        </tr>
-                    }
+                <tbody x-ref="shipmentTbody" class="divide-y divide-slate-100">
                     @foreach (var s in Model.Shipments)
                     {
-                        var priorityClass = s.Priority == "Critical"
-                            ? "text-red-600 bg-red-50 border-red-200"
-                            : s.Priority == "Express"
-                                ? "text-orange-600 bg-orange-50 border-orange-200"
-                                : "text-slate-600 bg-slate-50 border-slate-200";
-                        var statusClass = s.Status == "In Transit"
-                            ? "text-cyan-600 bg-cyan-50 border-cyan-200"
-                            : (s.Status == "Delivered" || s.Status == "Completed")
-                                ? "text-emerald-600 bg-emerald-50 border-emerald-200"
-                                : s.Status == "Cancelled"
-                                    ? "text-red-600 bg-red-50 border-red-200"
-                                    : s.Status == "Archived"
-                                        ? "text-slate-500 bg-slate-100 border-slate-300"
-                                        : "text-orange-600 bg-orange-50 border-orange-200";
-                        <tr x-show="rowMatches($el)"
-                            data-search="@($"{s.ShipmentCode} {s.Origin} {s.Destination} {s.CarrierName} {s.CargoType}")"
-                            data-status="@s.Status"
-                            data-carrier="@s.CarrierName"
-                            data-date="@s.ScheduledDate.ToString("yyyy-MM-dd")"
-                            data-edit-id="@s.ShipmentId"
-                            data-edit-code="@s.ShipmentCode"
-                            data-edit-origin="@s.Origin"
-                            data-edit-dest="@s.Destination"
-                            data-edit-cargo="@s.CargoType"
-                            data-edit-weight="@s.Weight"
-                            data-edit-date="@s.ScheduledDate.ToString("yyyy-MM-dd")"
-                            data-edit-carrier="@s.CarrierId"
-                            class="hover:bg-slate-50 transition-colors group">
+                        <tr class="hover:bg-slate-50/80 transition-colors shipment-row"
+                            data-id="@s.ShipmentId" data-code="@s.ShipmentCode" data-origin="@s.Origin"
+                            data-destination="@s.Destination" data-carrier="@s.CarrierName" data-carrier-id="@s.CarrierId"
+                            data-cargo="@s.CargoType" data-weight="@s.Weight" data-status="@s.Status"
+                            data-priority="@s.Priority" data-warehouse="@s.WarehouseName" data-warehouse-id="@s.WarehouseId"
+                            data-scheduled="@s.ScheduledDate.ToString("yyyy-MM-dd")" data-fee="@s.ShippingFee"
+                            data-cost="@s.EstimatedCost"
+                            x-show="rowMatches($el)">
                             <td class="px-6 py-4">
-                                <span class="text-sm text-sky-600 hover:text-sky-700 cursor-pointer font-semibold">@s.ShipmentCode</span>
+                                <button type="button" @@click="openViewFromRow($el.closest('tr'))" class="text-left font-bold text-[#0088CC] hover:text-[#0077b3] hover:underline text-sm tracking-tight">
+                                    @s.ShipmentCode
+                                </button>
                             </td>
                             <td class="px-6 py-4">
-                                <div class="flex items-center gap-2 text-sm text-slate-700">
-                                    <span>@s.Origin</span>
-                                    <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M5 12h14m-7-7l7 7-7 7" /></svg>
-                                    <span>@s.Destination</span>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 text-sm text-slate-700">@s.CarrierName</td>
-                            <td class="px-6 py-4 text-sm text-slate-600">@s.CargoType</td>
-                            <td class="px-6 py-4 text-sm text-slate-700">@($"{s.Weight:0.##} kg")</td>
-                            <td class="px-6 py-4">
-                                <span class="text-xs font-semibold px-3 py-1.5 rounded-full border @priorityClass">@s.Priority</span>
+                                <span class="text-sm font-semibold text-slate-700">@s.Origin</span>
+                                <span class="mx-1.5 text-slate-400 font-medium">→</span>
+                                <span class="text-sm font-semibold text-slate-700">@s.Destination</span>
                             </td>
                             <td class="px-6 py-4">
-                                <span class="text-xs font-semibold px-3 py-1.5 rounded-full border @statusClass">@s.Status</span>
+                                <span class="text-sm font-semibold text-slate-700">@s.CarrierName</span>
                             </td>
-                            <td class="px-6 py-4 text-sm text-slate-600">@s.ScheduledDate.ToString("yyyy-MM-dd")</td>
-                            <td class="px-6 py-4">
-                                <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    @if (string.Equals(s.Status, "Pending", StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        <button class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-lg transition-colors font-semibold"
-                                                onclick="approveShipment(@s.ShipmentId)">
-                                            Approve
-                                        </button>
-                                    }
-                                    <button class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg transition-colors font-semibold"
-                                            @@click="openEdit($el)">Edit</button>
-                                    @if (canCancelShipment &&
-                                         !string.Equals(s.Status, "Cancelled", StringComparison.OrdinalIgnoreCase) &&
-                                         !string.Equals(s.Status, "Delivered", StringComparison.OrdinalIgnoreCase) &&
-                                         !string.Equals(s.Status, "Completed", StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        <button class="text-xs bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-3 py-1.5 rounded-lg transition-colors font-semibold"
-                                                onclick="cancelShipment(@s.ShipmentId)">Cancel</button>
-                                    }
-                                </div>
+                            <td class="px-6 py-4 text-center">
+                                <span class="text-sm text-slate-600">@s.CargoType</span>
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                <span class="text-sm font-bold text-slate-900 tabular-nums">@((s.Weight % 1 == 0) ? ((int)s.Weight).ToString() : s.Weight.ToString("0.##")) kg</span>
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                @{
+                                    var statusClass = s.Status switch {
+                                        "Pending" => "bg-orange-50 text-orange-600 border-orange-100",
+                                        "In Transit" => "bg-sky-50 text-teal-700 border-sky-100",
+                                        "Delivered" or "Completed" => "bg-emerald-50 text-emerald-700 border-emerald-100",
+                                        "Cancelled" => "bg-rose-50 text-rose-600 border-rose-100",
+                                        "Received at Warehouse" => "bg-teal-50 text-teal-700 border-teal-100",
+                                        _ => "bg-slate-50 text-slate-600 border-slate-100"
+                                    };
+                                }
+                                <span class="text-[10px] font-bold px-3 py-1 rounded-full border @statusClass">@s.Status</span>
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <button type="button" @@click="openViewFromRow($event.currentTarget.closest('tr'))" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-sky-100 bg-sky-50 text-[#0088CC] text-xs font-semibold hover:bg-[#0088CC] hover:text-white hover:border-[#0088CC] transition-colors shadow-sm">
+                                    <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                    View
+                                </button>
                             </td>
                         </tr>
                     }
                 </tbody>
             </table>
         </div>
-
-        @* Pagination *@
-        <div class="px-6 py-4 border-t border-slate-200 flex items-center justify-between bg-slate-50">
-            <span class="text-xs text-slate-600">Showing @Model.Shipments.Count shipment(s)</span>
-            <div class="flex items-center gap-1">
-                <button class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 transition-colors text-xs font-semibold">‹</button>
-                <button class="w-8 h-8 flex items-center justify-center rounded-lg bg-sky-600 text-white text-xs font-bold">1</button>
-                <button class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 transition-colors text-xs">2</button>
-                <button class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 transition-colors text-xs">3</button>
-                <span class="text-slate-500 px-1 text-xs">…</span>
-                <button class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 transition-colors text-xs">26</button>
-                <button class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 transition-colors text-xs">›</button>
-            </div>
-        </div>
     </div>
 
-    @* ===== CREATE SHIPMENT SLIDE-OVER PANEL ===== *@
-    <div x-show="showCreatePanel" x-cloak
-         class="fixed inset-0 z-50 flex"
-         x-transition:enter="transition ease-out duration-200"
-         x-transition:enter-start="opacity-0"
-         x-transition:enter-end="opacity-100"
-         x-transition:leave="transition ease-in duration-150"
-         x-transition:leave-start="opacity-100"
-         x-transition:leave-end="opacity-0">
+    <div class="text-sm text-slate-500 px-1">
+        Showing @Model.Shipments.Count shipment(s)
+    </div>
 
-        @* Backdrop *@
-        <div class="flex-1 bg-black/40 backdrop-blur-sm" @@click="showCreatePanel = false"></div>
-
-        @* Panel *@
-        <div class="w-full max-w-lg bg-white border-l border-slate-200 h-full overflow-y-auto shadow-xl"
-             x-transition:enter="transition ease-out duration-200"
-             x-transition:enter-start="translate-x-full"
-             x-transition:enter-end="translate-x-0">
-
-            <div class="p-8">
-                <div class="flex items-center justify-between mb-8">
-                    <div>
-                        <h2 class="font-display text-2xl font-bold text-slate-900">New Shipment</h2>
-                        <p class="text-xs text-slate-600 mt-1">Fill in details to create a shipment plan</p>
-                    </div>          
-                    <button @@click="showCreatePanel = false" class="text-slate-400 hover:text-slate-600 transition-colors">
-                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
-                </div>
-
-                @* AJAX: POST /Shipment/Create *@
-                @* CSRF: @Html.AntiForgeryToken() *@
-                <form id="createShipmentForm" onsubmit="submitCreateShipment(event)" class="space-y-5">
+    @* Drawers teleported to body so fixed + scroll are not broken by layout/flex/transform ancestors. Single h-[100dvh] overflow-y-auto column scrolls reliably. *@
+    <template x-teleport="body">
+    <div x-show="showCreatePanel" x-cloak class="fixed inset-0 z-[100]" style="display: none;">
+        <div class="absolute inset-0 bg-slate-900/20 backdrop-blur-sm transition-opacity" @@click="showCreatePanel = false"></div>
+        <div
+            class="fixed top-0 right-0 z-[101] flex h-[100dvh] max-h-[100svh] w-full max-w-[500px] flex-col overflow-y-auto overflow-x-hidden overscroll-y-contain bg-white shadow-2xl border-l border-slate-200/80 [-webkit-overflow-scrolling:touch]"
+            x-transition:enter="transform transition ease-out duration-300"
+            x-transition:enter-start="translate-x-full"
+            x-transition:enter-end="translate-x-0"
+            x-transition:leave="transform transition ease-in duration-200"
+            x-transition:leave-start="translate-x-0"
+            x-transition:leave-end="translate-x-full">
+            <form x-ref="shipmentDrawerForm" @@submit.prevent class="flex w-full flex-col">
                     @Html.AntiForgeryToken()
+                    <input type="hidden" name="Priority" x-model="newShipmentPriority" />
+                    <input type="hidden" name="ShipmentId" x-bind:disabled="!isEditing" x-model="editingShipmentId" />
+                    <input type="hidden" name="ShippingFee" x-model="newShipmentShippingFee" />
+                    <input type="hidden" name="EstimatedCost" x-model="newShipmentEstimatedCost" />
 
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 bg-white px-10 pb-6 pt-10">
                         <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Origin <span class="text-red-500">*</span></label>
-                            <input type="text" name="Origin" required maxlength="100" placeholder="e.g. Manila"
-                                   class="w-full bg-slate-50 border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 text-slate-900 placeholder:text-slate-500 rounded-lg px-4 py-2.5 text-sm outline-none transition-all" />
+                            <h2 class="font-display text-3xl font-bold text-[#0A192F]" x-text="isEditing ? 'Edit Shipment' : 'New Shipment'"></h2>
+                            <p class="text-sm text-slate-500 mt-1" x-text="isEditing ? editingShipmentCode : 'Fill in details to create a shipment plan'"></p>
                         </div>
+                        <button type="button" @@click="showCreatePanel = false" class="shrink-0 p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors" aria-label="Close">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+
+                    <div class="px-10 py-6 space-y-5">
+                        
+                        <div x-show="isEditing" x-cloak class="mb-2">
+                            <p class="text-sm font-bold text-slate-700 mb-1">Current Status</p>
+                            <p class="text-lg font-bold uppercase tracking-wide leading-tight" :class="{
+                                'text-amber-600': editingShipmentStatus === 'Pending',
+                                'text-teal-600': editingShipmentStatus === 'In Transit' || editingShipmentStatus === 'Received at Warehouse',
+                                'text-emerald-600': editingShipmentStatus === 'Delivered' || editingShipmentStatus === 'Completed',
+                                'text-rose-600': editingShipmentStatus === 'Cancelled',
+                                'text-slate-700': editingShipmentStatus !== 'Pending' && editingShipmentStatus !== 'In Transit' && editingShipmentStatus !== 'Received at Warehouse' && editingShipmentStatus !== 'Delivered' && editingShipmentStatus !== 'Completed' && editingShipmentStatus !== 'Cancelled'
+                            }" x-text="editingShipmentStatus"></p>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-bold text-[#334155] mb-1.5">Origin <span class="text-rose-500">*</span></label>
+                                <input type="text" name="Origin" placeholder="e.g. Manila" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-[#0088CC] focus:ring-1 focus:ring-[#0088CC]/25" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-[#334155] mb-1.5">Destination <span class="text-rose-500">*</span></label>
+                                <input type="text" name="Destination" x-model="newShipmentDest" @@input="calculateFinancials()" placeholder="e.g. Cebu City" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-[#0088CC] focus:ring-1 focus:ring-[#0088CC]/25" />
+                            </div>
+                        </div>
+
                         <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Destination <span class="text-red-500">*</span></label>
-                            <input type="text" name="Destination" required maxlength="100" placeholder="e.g. Cebu City"
-                                   class="w-full bg-slate-50 border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 text-slate-900 placeholder:text-slate-500 rounded-lg px-4 py-2.5 text-sm outline-none transition-all" />
+                            <label class="block text-sm font-bold text-[#334155] mb-1.5">Cargo Type <span class="text-rose-500">*</span></label>
+                            <div class="relative">
+                                <select name="CargoType" class="w-full appearance-none rounded-lg border border-slate-200 bg-white px-3 py-2.5 pr-10 text-sm text-slate-900 outline-none focus:border-[#0088CC] focus:ring-1 focus:ring-[#0088CC]/25">
+                                    <option value="">Select cargo type...</option>
+                                    <option value="Electronics">Electronics</option>
+                                    <option value="Dry Goods">Dry Goods</option>
+                                    <option value="Perishables">Perishables</option>
+                                    <option value="Machinery">Machinery</option>
+                                    <option value="Chemicals">Chemicals</option>
+                                    <option value="Textiles">Textiles</option>
+                                    <option value="Documents">Documents</option>
+                                    <option value="Hazardous">Hazardous</option>
+                                </select>
+                                <svg class="pointer-events-none absolute right-3 top-3 h-4 w-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-bold text-[#334155] mb-1.5">Weight (kg) <span class="text-rose-500">*</span></label>
+                                <input type="number" name="Weight" x-model="newShipmentWeight" @@input="calculateFinancials()" placeholder="0" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-[#0088CC] focus:ring-1 focus:ring-[#0088CC]/25" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-[#334155] mb-1.5">Volume (m³)</label>
+                                <input type="number" step="0.01" name="Volume" placeholder="0.00" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-[#0088CC] focus:ring-1 focus:ring-[#0088CC]/25" />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold text-[#334155] mb-1.5">Priority Level <span class="text-rose-500">*</span></label>
+                            <div class="grid grid-cols-3 gap-3">
+                                <button type="button" @@click="newShipmentPriority = 'Standard'; calculateFinancials()"
+                                        class="rounded-lg py-2.5 text-sm font-semibold transition-all"
+                                        :class="newShipmentPriority === 'Standard' ? 'border border-[#d97706] bg-[#fffbeb] text-[#d97706]' : 'border border-slate-200 bg-white text-[#334155] hover:bg-slate-50'">Standard</button>
+                                <button type="button" @@click="newShipmentPriority = 'Express'; calculateFinancials()"
+                                        class="rounded-lg py-2.5 text-sm font-semibold transition-all"
+                                        :class="newShipmentPriority === 'Express' ? 'border border-[#d97706] bg-[#fffbeb] text-[#d97706]' : 'border border-slate-200 bg-white text-[#334155] hover:bg-slate-50'">Express</button>
+                                <button type="button" @@click="newShipmentPriority = 'Critical'; calculateFinancials()"
+                                        class="rounded-lg py-2.5 text-sm font-semibold transition-all"
+                                        :class="newShipmentPriority === 'Critical' ? 'border border-[#d97706] bg-[#fffbeb] text-[#d97706]' : 'border border-slate-200 bg-white text-[#334155] hover:bg-slate-50'">Critical</button>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-bold text-[#334155] mb-1.5">Scheduled Date <span class="text-rose-500">*</span></label>
+                                <input type="date" name="ScheduledDate" class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-[#0088CC] focus:ring-1 focus:ring-[#0088CC]/25" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-[#334155] mb-1.5">Carrier <span class="text-rose-500">*</span></label>
+                                <div class="relative">
+                                    <select name="CarrierId" x-model="newShipmentCarrierId" @@change="calculateFinancials()" class="w-full appearance-none rounded-lg border border-slate-200 bg-white px-3 py-2.5 pr-10 text-sm text-slate-900 outline-none focus:border-[#0088CC] focus:ring-1 focus:ring-[#0088CC]/25">
+                                        <option value="">Select carrier...</option>
+                                        <template x-for="c in carriers" :key="c.CarrierId || c.carrierId">
+                                            <option :value="c.CarrierId || c.carrierId" x-text="c.Name || c.name"></option>
+                                        </template>
+                                    </select>
+                                    <svg class="pointer-events-none absolute right-3 top-3 h-4 w-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold text-[#334155] mb-1.5">Warehouse <span class="text-rose-500">*</span></label>
+                            <div class="relative">
+                                <select name="WarehouseId" class="w-full appearance-none rounded-lg border border-slate-200 bg-white px-3 py-2.5 pr-10 text-sm text-slate-900 outline-none focus:border-[#0088CC] focus:ring-1 focus:ring-[#0088CC]/25">
+                                    <option value="">Select warehouse...</option>
+                                    <template x-for="w in warehouses" :key="w.WarehouseId || w.warehouseId">
+                                        <option :value="w.WarehouseId || w.warehouseId" x-text="w.Name || w.name"></option>
+                                    </template>
+                                </select>
+                                <svg class="pointer-events-none absolute right-3 top-3 h-4 w-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                            </div>
+                        </div>
+
+
+                        <div>
+                            <label class="block text-sm font-bold text-[#334155] mb-2">Special Handling</label>
+                            <div class="grid grid-cols-2 gap-3">
+                                <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 hover:bg-slate-50 transition-colors">
+                                    <input type="checkbox" name="Handling" value="Fragile" class="h-4 w-4 rounded border-slate-300 text-[#0088CC] focus:ring-[#0088CC]/30" />
+                                    <span class="text-sm text-[#334155]">Fragile</span>
+                                </label>
+                                <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 hover:bg-slate-50 transition-colors">
+                                    <input type="checkbox" name="Handling" value="Keep Upright" class="h-4 w-4 rounded border-slate-300 text-[#0088CC] focus:ring-[#0088CC]/30" />
+                                    <span class="text-sm text-[#334155]">Keep Upright</span>
+                                </label>
+                                <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 hover:bg-slate-50 transition-colors">
+                                    <input type="checkbox" name="Handling" value="Temperature Controlled" class="h-4 w-4 rounded border-slate-300 text-[#0088CC] focus:ring-[#0088CC]/30" />
+                                    <span class="text-sm text-[#334155]">Temperature Controlled</span>
+                                </label>
+                                <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 hover:bg-slate-50 transition-colors">
+                                    <input type="checkbox" name="Handling" value="Hazardous Material" class="h-4 w-4 rounded border-slate-300 text-[#0088CC] focus:ring-[#0088CC]/30" />
+                                    <span class="text-sm text-[#334155]">Hazardous Material</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold text-[#334155] mb-1.5">Notes</label>
+                            <textarea name="Notes" rows="3" placeholder="Additional instructions..." class="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-[#0088CC] focus:ring-1 focus:ring-[#0088CC]/25"></textarea>
                         </div>
                     </div>
 
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-2">Cargo Type <span class="text-red-500">*</span></label>
-                        <select name="CargoType" required class="w-full bg-slate-50 border border-slate-300 focus:border-orange-500 text-slate-900 rounded-lg px-4 py-2.5 text-sm outline-none transition-all">
-                            <option value="">Select cargo type…</option>
-                            <option>Electronics</option>
-                            <option>Dry Goods</option>
-                            <option>Perishables</option>
-                            <option>Machinery</option>
-                            <option>Textiles</option>
-                            <option>Chemicals</option>
-                            <option>Documents</option>
-                        </select>
+                    <div class="border-t border-slate-200 bg-white px-10 py-5 flex gap-3 mt-auto">
+                        <button type="button" @@click="submitCreate()" class="flex-grow py-3.5 rounded-xl bg-[#0088CC] hover:bg-[#0077b3] text-white font-semibold transition-colors" x-text="isEditing ? 'Save Changes' : 'Create Shipment'"></button>
+                        <button type="button" @@click="showCreatePanel = false" class="px-8 py-3.5 rounded-xl bg-slate-100 text-slate-800 font-semibold hover:bg-slate-200 transition-colors">Cancel</button>
                     </div>
+            </form>
+        </div>
+    </div>
+    </template>
 
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Weight (kg) <span class="text-red-500">*</span></label>
-                            <input type="number" name="Weight" required min="0.1" step="0.1" placeholder="0.0"
-                                   class="w-full bg-slate-50 border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 text-slate-900 placeholder:text-slate-500 rounded-lg px-4 py-2.5 text-sm outline-none transition-all" />
+        @* VIEW SHIPMENT PANEL — teleported + single overflow column (same as create drawer) *@
+        <template x-teleport="body">
+        <div x-show="showViewPanel" x-cloak class="fixed inset-0 z-[100]" style="display: none;">
+            <div class="absolute inset-0 bg-slate-900/20 backdrop-blur-sm transition-opacity" @@click="showViewPanel = false"></div>
+            <div
+                class="fixed top-0 right-0 z-[101] flex h-[100dvh] max-h-[100svh] w-full max-w-[500px] flex-col overflow-y-auto overflow-x-hidden overscroll-y-contain bg-white shadow-2xl border-l border-slate-200/80 [-webkit-overflow-scrolling:touch]"
+                x-transition:enter="transform transition ease-out duration-300"
+                x-transition:enter-start="translate-x-full"
+                x-transition:enter-end="translate-x-0"
+                x-transition:leave="transform transition ease-in duration-250"
+                x-transition:leave-start="translate-x-0"
+                x-transition:leave-end="translate-x-full">
+                <div class="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 bg-white px-10 pb-6 pt-10">
+                            <div>
+                                <h2 class="font-display text-3xl font-bold text-[#0A192F]">Shipment Details</h2>
+                                <p class="text-sm text-slate-500 font-medium mt-1.5" x-text="selectedShipment.shipmentCode"></p>
+                            </div>
+                            <button type="button" @@click="showViewPanel = false" class="shrink-0 p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors" aria-label="Close">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
                         </div>
-                        <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Volume (m³)</label>
-                            <input type="number" name="Volume" min="0" step="0.01" placeholder="0.00"
-                                   class="w-full bg-slate-50 border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 text-slate-900 placeholder:text-slate-500 rounded-lg px-4 py-2.5 text-sm outline-none transition-all" />
-                        </div>
-                    </div>
 
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-3">Priority Level <span class="text-red-500">*</span></label>
-                        <div class="grid grid-cols-3 gap-2">
-                            @foreach (var p in new[] { ("Standard", "slate"), ("Express", "orange"), ("Critical", "red") })
-                            {
-                                <label class="relative cursor-pointer">
-                                    <input type="radio" name="Priority" value="@p.Item1" class="sr-only peer" @(p.Item1 == "Standard" ? "checked" : "") />
-                                    <div class="flex items-center justify-center py-3 rounded-lg border border-slate-300 text-sm font-semibold text-slate-700 peer-checked:border-orange-500 peer-checked:bg-orange-50 peer-checked:text-orange-700 transition-all">
-                                        @p.Item1
+                        <div class="px-10 py-8 space-y-8">
+                            @* Status + profit summary *@
+                            <div class="flex items-start justify-between gap-6 rounded-2xl border border-slate-200/90 bg-[#F8F9FA] px-6 py-5">
+                                <div class="min-w-0">
+                                    <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-[0.12em]">Current Status</p>
+                                    <p class="mt-2 text-lg font-bold uppercase tracking-wide leading-tight" :class="{
+                                        'text-amber-600': selectedShipment.status === 'Pending',
+                                        'text-teal-600': selectedShipment.status === 'In Transit' || selectedShipment.status === 'Received at Warehouse',
+                                        'text-emerald-600': selectedShipment.status === 'Delivered' || selectedShipment.status === 'Completed',
+                                        'text-rose-600': selectedShipment.status === 'Cancelled',
+                                        'text-slate-700': selectedShipment.status !== 'Pending' && selectedShipment.status !== 'In Transit' && selectedShipment.status !== 'Received at Warehouse' && selectedShipment.status !== 'Delivered' && selectedShipment.status !== 'Completed' && selectedShipment.status !== 'Cancelled'
+                                    }" x-text="selectedShipment.status"></p>
+                                </div>
+
+                            </div>
+
+                            @* Route Information *@
+                            <div class="space-y-4">
+                                <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-[0.12em] border-b border-slate-200 pb-2">Route Information</p>
+                                <div class="grid grid-cols-2 gap-x-6 gap-y-5">
+                                    <div>
+                                        <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-[0.12em]">Origin</p>
+                                        <p class="mt-1 text-sm font-bold text-slate-900" x-text="selectedShipment.origin"></p>
                                     </div>
-                                </label>
-                            }
-                        </div>
-                    </div>
+                                    <div>
+                                        <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-[0.12em]">Destination</p>
+                                        <p class="mt-1 text-sm font-bold text-slate-900" x-text="selectedShipment.destination"></p>
+                                    </div>
+                                </div>
+                                <div>
+                                    <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-[0.12em]">Assigned Warehouse</p>
+                                    <p class="mt-1 text-sm font-bold text-slate-900" x-text="selectedShipment.warehouseName"></p>
+                                </div>
+                            </div>
 
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Scheduled Date <span class="text-red-500">*</span></label>
-                            <input type="date" name="ScheduledDate" required
-                                   class="w-full bg-slate-50 border border-slate-300 focus:border-orange-500 text-slate-900 rounded-lg px-4 py-2.5 text-sm outline-none transition-all" />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Carrier <span class="text-red-500">*</span></label>
-                            <select name="CarrierId" required class="w-full bg-slate-50 border border-slate-300 focus:border-orange-500 text-slate-900 rounded-lg px-4 py-2.5 text-sm outline-none transition-all">
-                                <option value="">Select carrier…</option>
-                                @foreach (var carrier in Model.Carriers)
-                                {
-                                    <option value="@carrier.CarrierId">@carrier.Name</option>
-                                }
-                            </select>
-                        </div>
-                    </div>
+                            @* Cargo Information *@
+                            <div class="space-y-4">
+                                <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-[0.12em] border-b border-slate-200 pb-2">Cargo Information</p>
+                                <div class="grid grid-cols-2 gap-x-6 gap-y-5">
+                                    <div>
+                                        <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-[0.12em]">Cargo Type</p>
+                                        <p class="mt-1 text-sm font-bold text-slate-900" x-text="selectedShipment.cargoType"></p>
+                                    </div>
+                                    <div>
+                                        <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-[0.12em]">Weight</p>
+                                        <p class="mt-1 text-sm font-bold text-slate-900 tabular-nums" x-text="(Number(selectedShipment.weight) || 0).toFixed(2) + ' kg'"></p>
+                                    </div>
+                                </div>
+                                <div>
+                                    <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-[0.12em]">Priority</p>
+                                    <p class="mt-1 text-sm font-bold text-slate-900" x-text="selectedShipment.priority"></p>
+                                </div>
+                            </div>
 
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-3">Special Handling</label>
-                        <div class="grid grid-cols-2 gap-2">
-                            @foreach (var h in new[] { "Fragile", "Keep Upright", "Temperature Controlled", "Hazardous Material" })
+                            @* Logistics *@
+                            <div class="space-y-4">
+                                <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-[0.12em] border-b border-slate-200 pb-2">Logistics</p>
+                                <div class="grid grid-cols-2 gap-x-6 gap-y-5">
+                                    <div>
+                                        <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-[0.12em]">Carrier</p>
+                                        <p class="mt-1 text-sm font-bold text-slate-900" x-text="selectedShipment.carrierName"></p>
+                                    </div>
+                                    <div>
+                                        <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-[0.12em]">Scheduled Date</p>
+                                        <p class="mt-1 text-sm font-bold text-slate-900 tabular-nums" x-text="selectedShipment.scheduledDate"></p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            @* Management Actions *@
+                            @if (isManagerOrAdmin)
                             {
-                                <label class="flex items-center gap-3 cursor-pointer p-3 rounded-lg border border-slate-300 hover:border-sky-300 hover:bg-sky-50/30 transition-all">
-                                    <input type="checkbox" name="Handling" value="@h" class="w-4 h-4 rounded accent-sky-500 bg-slate-50 border-slate-300" />
-                                    <span class="text-sm text-slate-700">@h</span>
-                                </label>
+                                <template x-if="selectedShipment.status === 'Pending'">
+                                    <div class="pt-2 border-t border-slate-200 space-y-4">
+                                        <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-[0.12em] border-b border-slate-200 pb-2">Management Actions</p>
+                                        <div class="flex flex-wrap gap-3">
+                                            <button type="button" @@click="editShipment()" class="min-w-0 flex-1 basis-[140px] px-6 py-3 bg-sky-600 text-white text-sm font-bold rounded-xl hover:bg-sky-500 shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+                                                <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                Edit
+                                            </button>
+                                            <button type="button" @@click="cancelShipment(selectedShipment.shipmentId)" class="min-w-0 flex-1 basis-[140px] px-6 py-3 bg-slate-100 text-slate-700 text-sm font-bold rounded-xl hover:bg-slate-200 shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+                                                <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                Cancel Shipment
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
                             }
                         </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-2">Notes</label>
-                        <textarea name="Notes" rows="3" maxlength="500" placeholder="Additional instructions…"
-                                  class="w-full bg-slate-50 border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 text-slate-900 placeholder:text-slate-500 rounded-lg px-4 py-2.5 text-sm outline-none transition-all resize-none"></textarea>
-                    </div>
-
-                    <div class="flex items-center gap-3 pt-4">
-                        <button type="submit"
-                                class="flex-1 bg-sky-600 hover:bg-sky-500 text-white font-semibold py-3.5 rounded-lg transition-all text-sm hover:shadow-lg hover:shadow-sky-500/20">
-                            Create Shipment
-                        </button>
-                        <button type="button" @@click="showCreatePanel = false"
-                                class="px-6 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors text-sm font-semibold">
-                            Cancel
-                        </button>
-                    </div>
-                </form>
             </div>
         </div>
-    </div>
+        </template>
 
-    @* ===== EDIT SHIPMENT SLIDE-OVER PANEL ===== *@
-    <div x-show="showEditPanel" x-cloak
-         class="fixed inset-0 z-50 flex"
-         x-transition:enter="transition ease-out duration-200"
-         x-transition:enter-start="opacity-0"
-         x-transition:enter-end="opacity-100"
-         x-transition:leave="transition ease-in duration-150"
-         x-transition:leave-start="opacity-100"
-         x-transition:leave-end="opacity-0">
-
-        @* Backdrop *@
-        <div class="flex-1 bg-black/40 backdrop-blur-sm" @@click="showEditPanel = false"></div>
-
-        @* Panel *@
-        <div class="w-full max-w-lg bg-white border-l border-slate-200 h-full overflow-y-auto shadow-xl"
-             x-transition:enter="transition ease-out duration-200"
-             x-transition:enter-start="translate-x-full"
-             x-transition:enter-end="translate-x-0">
-
-            <div class="p-8">
-                <div class="flex items-center justify-between mb-8">
-                    <div>
-                        <h2 class="font-display text-2xl font-bold text-slate-900">Edit Shipment</h2>
-                        <p class="text-xs text-slate-600 mt-1" id="editShipmentCode"></p>
-                    </div>
-                    <button @@click="showEditPanel = false" class="text-slate-400 hover:text-slate-600 transition-colors">
-                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
-                </div>
-
-                <form id="editShipmentForm" onsubmit="submitEditShipment(event)" class="space-y-5">
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="ShipmentId" id="editShipmentId" />
-
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Origin <span class="text-red-500">*</span></label>
-                            <input type="text" name="Origin" id="editOrigin" required maxlength="100"
-                                   class="w-full bg-slate-50 border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 text-slate-900 placeholder:text-slate-500 rounded-lg px-4 py-2.5 text-sm outline-none transition-all" />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Destination <span class="text-red-500">*</span></label>
-                            <input type="text" name="Destination" id="editDestination" required maxlength="100"
-                                   class="w-full bg-slate-50 border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 text-slate-900 placeholder:text-slate-500 rounded-lg px-4 py-2.5 text-sm outline-none transition-all" />
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-2">Cargo Type <span class="text-red-500">*</span></label>
-                        <select name="CargoType" id="editCargoType" required class="w-full bg-slate-50 border border-slate-300 focus:border-sky-500 text-slate-900 rounded-lg px-4 py-2.5 text-sm outline-none transition-all">
-                            <option value="">Select cargo type…</option>
-                            <option>Electronics</option>
-                            <option>Dry Goods</option>
-                            <option>Perishables</option>
-                            <option>Machinery</option>
-                            <option>Textiles</option>
-                            <option>Chemicals</option>
-                            <option>Documents</option>
-                        </select>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Weight (kg) <span class="text-red-500">*</span></label>
-                            <input type="number" name="Weight" id="editWeight" required min="0.1" step="0.1"
-                                   class="w-full bg-slate-50 border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 text-slate-900 rounded-lg px-4 py-2.5 text-sm outline-none transition-all" />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Volume (m³)</label>
-                            <input type="number" name="Volume" id="editVolume" min="0" step="0.01"
-                                   class="w-full bg-slate-50 border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 text-slate-900 rounded-lg px-4 py-2.5 text-sm outline-none transition-all" />
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Scheduled Date <span class="text-red-500">*</span></label>
-                            <input type="date" name="ScheduledDate" id="editScheduledDate" required
-                                   class="w-full bg-slate-50 border border-slate-300 focus:border-sky-500 text-slate-900 rounded-lg px-4 py-2.5 text-sm outline-none transition-all" />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Carrier <span class="text-red-500">*</span></label>
-                            <select name="CarrierId" id="editCarrierId" required class="w-full bg-slate-50 border border-slate-300 focus:border-sky-500 text-slate-900 rounded-lg px-4 py-2.5 text-sm outline-none transition-all">
-                                <option value="">Select carrier…</option>
-                                @foreach (var carrier in Model.Carriers)
-                                {
-                                    <option value="@carrier.CarrierId">@carrier.Name</option>
-                                }
-                            </select>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-2">Notes</label>
-                        <textarea name="Notes" id="editNotes" rows="3" maxlength="500"
-                                  class="w-full bg-slate-50 border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 text-slate-900 placeholder:text-slate-500 rounded-lg px-4 py-2.5 text-sm outline-none transition-all resize-none"></textarea>
-                    </div>
-
-                    <div class="flex items-center gap-3 pt-4">
-                        <button type="submit"
-                                class="flex-1 bg-sky-600 hover:bg-sky-500 text-white font-semibold py-3.5 rounded-lg transition-all text-sm hover:shadow-lg hover:shadow-sky-500/20">
-                            Save Changes
-                        </button>
-                        <button type="button" @@click="showEditPanel = false"
-                                class="px-6 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors text-sm font-semibold">
-                            Cancel
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-    </main>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-    function showSystemToast(message, type = 'success') {
-        const existing = document.getElementById('system-toast');
-        if (existing) {
-            existing.remove();
-        }
+    function shipmentModule() {
+        return {
+            showCreatePanel: false,
+            isEditing: false,
+            showViewPanel: false,
+            selectedShipment: {},
+            searchText: '',
+            statusFilter: '',
+            statusFilterGroup: '',
+            carrierFilter: '',
+            dateFilter: '',
+            sortShipmentAsc: false,
+            carriers: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Carriers)),
+            warehouses: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Warehouses)),
+            rateCards: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.RateCards)),
+            kpis: {
+                totalToday: @Model.TotalToday,
+                pending: @Model.PendingApproval,
+                inTransit: @Model.InTransit,
+                completed: @Model.Completed
+            },
+            newShipmentWeight: 0,
+            newShipmentCarrierId: '',
+            newShipmentDest: '',
+            newShipmentPriority: 'Standard',
+            newShipmentShippingFee: 0,
+            newShipmentEstimatedCost: 0,
+            editingShipmentId: '',
+            editingShipmentCode: '',
+            editingShipmentStatus: '',
 
-        const toast = document.createElement('div');
-        toast.id = 'system-toast';
-        toast.className = type === 'success'
-            ? 'fixed top-5 right-5 z-50 max-w-sm rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-700 text-sm font-medium shadow-lg'
-            : 'fixed top-5 right-5 z-50 max-w-sm rounded-xl border border-red-200 bg-red-50 p-4 text-red-700 text-sm font-medium shadow-lg';
+            formatFormProfit(fee, cost) {
+                const n = (parseFloat(fee) || 0) - (parseFloat(cost) || 0);
+                return '₱' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            },
 
-        const iconPath = type === 'success'
-            ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />'
-            : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />';
+            getAntiForgeryToken() {
+                const el = document.querySelector('input[name="__RequestVerificationToken"]');
+                return el ? el.value : '';
+            },
 
-        toast.innerHTML = `
-            <div class="flex items-start gap-3">
-                <svg class="w-5 h-5 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    ${iconPath}
-                </svg>
-                <span class="flex-1"></span>
-                <button type="button" class="hover:opacity-80">&times;</button>
-            </div>
-        `;
+            antiforgeryHeaders() {
+                const t = this.getAntiForgeryToken();
+                return t ? { '__RequestVerificationToken': t, 'X-Requested-With': 'XMLHttpRequest' } : { 'X-Requested-With': 'XMLHttpRequest' };
+            },
 
-        toast.querySelector('span').textContent = message;
-        toast.querySelector('button').addEventListener('click', () => toast.remove());
-        document.body.appendChild(toast);
-        setTimeout(() => {
-            if (toast.parentElement) {
-                toast.remove();
-            }
-        }, 3500);
-    }
-
-    function showSystemConfirm(message, confirmLabel = 'Confirm') {
-        return new Promise((resolve) => {
-            const existing = document.getElementById('system-confirm-overlay');
-            if (existing) {
-                existing.remove();
-            }
-
-            const overlay = document.createElement('div');
-            overlay.id = 'system-confirm-overlay';
-            overlay.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4';
-
-            overlay.innerHTML = `
-                <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
-                    <div class="flex items-start gap-3">
-                        <div class="mt-0.5 rounded-full bg-amber-100 p-2 text-amber-600">
-                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                        </div>
-                        <div class="flex-1">
-                            <h3 class="text-base font-semibold text-slate-900">Confirm Action</h3>
-                            <p class="mt-1 text-sm text-slate-600"></p>
-                        </div>
-                    </div>
-                    <div class="mt-6 flex justify-end gap-2">
-                        <button type="button" data-action="cancel" class="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200 transition-colors">
-                            Keep Shipment
-                        </button>
-                        <button type="button" data-action="confirm" class="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500 transition-colors">
-                            ${confirmLabel}
-                        </button>
-                    </div>
-                </div>
-            `;
-
-            overlay.querySelector('p').textContent = message;
-            overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => {
-                overlay.remove();
-                resolve(false);
-            });
-            overlay.querySelector('[data-action="confirm"]').addEventListener('click', () => {
-                overlay.remove();
-                resolve(true);
-            });
-            overlay.addEventListener('click', (event) => {
-                if (event.target === overlay) {
-                    overlay.remove();
-                    resolve(false);
+            applyKpiFilter(mode) {
+                this.carrierFilter = '';
+                this.dateFilter = '';
+                this.searchText = '';
+                if (mode === 'all') {
+                    this.statusFilter = '';
+                    this.statusFilterGroup = '';
+                    window.showToast?.('Showing all statuses', 'info');
+                    return;
                 }
-            });
-
-            document.body.appendChild(overlay);
-        });
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-        const successMessage = sessionStorage.getItem('shipmentSuccessToast');
-        if (successMessage) {
-            showSystemToast(successMessage, 'success');
-            sessionStorage.removeItem('shipmentSuccessToast');
-        }
-    });
-
-    function approveShipment(id) {
-        if (!confirm('Approve this shipment?')) return;
-        const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
-        const payload = new FormData();
-        payload.append('shipmentId', id);
-
-        fetch('/Shipment/Approve', {
-            method: 'POST',
-            headers: tokenInput ? { 'RequestVerificationToken': tokenInput.value } : {},
-            body: payload
-        }).then(r => r.json()).then(d => {
-            if (d.success) {
-                location.reload();
-            } else {
-                alert(d.message || 'Unable to approve shipment.');
-            }
-        });
-    }
-
-    function submitCreateShipment(e) {
-        e.preventDefault();
-        const form = document.getElementById('createShipmentForm');
-        const data = new FormData(form);
-        fetch('/Shipment/Create', { method: 'POST', body: data })
-            .then(r => r.json())
-            .then(d => {
-                if (d.success) {
-                    location.reload();
-                } else {
-                    alert(d.message || 'Unable to create shipment.');
+                if (mode === 'Completed') {
+                    this.statusFilter = '';
+                    this.statusFilterGroup = 'terminal';
+                    window.showToast?.('Showing delivered & completed', 'info');
+                    return;
                 }
-            });
-    }
+                this.statusFilterGroup = '';
+                this.statusFilter = mode;
+            },
 
-    function submitEditShipment(e) {
-        e.preventDefault();
-        const form = document.getElementById('editShipmentForm');
-        const data = new FormData(form);
-        fetch('/Shipment/Update', { method: 'POST', body: data })
-            .then(r => r.json())
-            .then(d => {
-                if (d.success) {
-                    sessionStorage.setItem('shipmentSuccessToast', d.message || 'Shipment updated successfully.');
-                    location.reload();
-                } else {
-                    alert(d.message || 'Unable to update shipment.');
+            rowMatches(el) {
+                const code = (el.dataset.code || '').toLowerCase();
+                const origin = (el.dataset.origin || '').toLowerCase();
+                const dest = (el.dataset.destination || '').toLowerCase();
+                const carrier = (el.dataset.carrier || '').toLowerCase();
+                const status = el.dataset.status || '';
+                const scheduled = el.dataset.scheduled || '';
+                const search = this.searchText.toLowerCase();
+                const matchText = !search || code.includes(search) || origin.includes(search) || dest.includes(search) || carrier.includes(search);
+                let matchStatus = true;
+                if (this.statusFilterGroup === 'terminal') {
+                    matchStatus = status === 'Delivered' || status === 'Completed';
+                } else if (this.statusFilter) {
+                    matchStatus = status === this.statusFilter;
                 }
-            });
-    }
+                const matchCarrier = !this.carrierFilter || (el.dataset.carrier || '') === this.carrierFilter;
+                const matchDate = !this.dateFilter || scheduled === this.dateFilter;
+                return matchText && matchStatus && matchCarrier && matchDate;
+            },
 
-    async function cancelShipment(id) {
-        const confirmed = await showSystemConfirm('Cancel this shipment?', 'Cancel Shipment');
-        if (!confirmed) return;
+            toggleSortShipmentId() {
+                this.sortShipmentAsc = !this.sortShipmentAsc;
+                const tbody = this.$refs.shipmentTbody;
+                if (!tbody) return;
+                const rows = Array.from(tbody.querySelectorAll('tr.shipment-row'));
+                rows.sort((a, b) => {
+                    const ca = a.dataset.code || '';
+                    const cb = b.dataset.code || '';
+                    const cmp = ca.localeCompare(cb, undefined, { numeric: true, sensitivity: 'base' });
+                    return this.sortShipmentAsc ? cmp : -cmp;
+                });
+                rows.forEach(r => tbody.appendChild(r));
+            },
 
-        const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
-        const payload = new FormData();
-        payload.append('shipmentId', id);
-        if (tokenInput && tokenInput.value) {
-            payload.append('__RequestVerificationToken', tokenInput.value);
-        }
+            calculateFinancials() {
+                const weight = parseFloat(this.newShipmentWeight) || 0;
+                const carrierId = this.newShipmentCarrierId;
+                const dest = this.newShipmentDest;
+                const priority = this.newShipmentPriority;
+                if (!carrierId || weight <= 0) return;
+                let card = this.rateCards.find(r => (r.CarrierId || r.carrierId) == carrierId && (dest && (r.Zone || r.zone) && (r.Zone || r.zone).toLowerCase().includes(dest.toLowerCase())));
+                if (!card) card = this.rateCards.find(r => (r.CarrierId || r.carrierId) == carrierId);
+                if (card) {
+                    const baseRate = parseFloat(card.BaseRatePerKg || card.baseRatePerKg) || 0;
+                    const fuelSurcharge = parseFloat(card.FuelSurchargePercent || card.fuelSurchargePercent) || 0;
+                    const handlingFee = parseFloat(card.HandlingFee || card.handlingFee) || 0;
+                    const cost = (weight * baseRate) + (weight * baseRate * (fuelSurcharge / 100)) + handlingFee;
+                    let multiplier = 1.0, margin = 0.25;
+                    if (priority === 'Express') { multiplier = 1.35; margin = 0.35; }
+                    else if (priority === 'Critical') { multiplier = 1.75; margin = 0.50; }
+                    this.newShipmentEstimatedCost = cost.toFixed(2);
+                    this.newShipmentShippingFee = (cost * multiplier * (1 + margin)).toFixed(2);
+                }
+            },
 
-        fetch('/Shipment/Cancel', {
-            method: 'POST',
-            headers: tokenInput ? { 'RequestVerificationToken': tokenInput.value } : {},
-            body: payload
-        }).then(r => r.json()).then(d => {
-            if (d.success) {
-                sessionStorage.setItem('shipmentSuccessToast', d.message || 'Shipment cancelled.');
-                location.reload();
-            } else {
-                showSystemToast(d.message || 'Unable to cancel shipment.', 'error');
+            openCreate() {
+                this.isEditing = false;
+                this.editingShipmentId = '';
+                this.editingShipmentCode = '';
+                this.editingShipmentStatus = '';
+                this.showCreatePanel = true;
+                this.newShipmentWeight = 0;
+                this.newShipmentCarrierId = '';
+                this.newShipmentDest = '';
+                this.newShipmentPriority = 'Standard';
+                this.newShipmentShippingFee = 0;
+                this.newShipmentEstimatedCost = 0;
+                this.$nextTick(() => {
+                    const form = this.$refs.shipmentDrawerForm;
+                    if (!form) return;
+                    const originInput = form.querySelector('input[name="Origin"]');
+                    if (originInput) originInput.value = '';
+                    const destInput = form.querySelector('input[name="Destination"]');
+                    if (destInput) destInput.value = '';
+                    const volInput = form.querySelector('input[name="Volume"]');
+                    if (volInput) volInput.value = '';
+                    const notes = form.querySelector('textarea[name="Notes"]');
+                    if (notes) notes.value = '';
+                    ['CargoType', 'WarehouseId', 'CarrierId'].forEach((n) => {
+                        const sel = form.querySelector(`select[name="${n}"]`);
+                        if (sel) sel.selectedIndex = 0;
+                    });
+                    const dateInput = form.querySelector('input[name="ScheduledDate"]');
+                    if (dateInput) dateInput.value = '';
+                    form.querySelectorAll('input[name="Handling"]').forEach((cb) => { cb.checked = false; });
+                });
+            },
+
+            openViewFromRow(row) {
+                if (!row || !row.dataset) return;
+                this.selectedShipment = {
+                    shipmentId: row.dataset.id,
+                    shipmentCode: row.dataset.code,
+                    origin: row.dataset.origin,
+                    destination: row.dataset.destination,
+                    carrierName: row.dataset.carrier,
+                    carrierId: row.dataset.carrierId,
+                    cargoType: row.dataset.cargo,
+                    weight: row.dataset.weight,
+                    status: row.dataset.status,
+                    priority: row.dataset.priority,
+                    warehouseName: row.dataset.warehouse,
+                    warehouseId: row.dataset.warehouseId,
+                    scheduledDate: row.dataset.scheduled,
+                    shippingFee: parseFloat(row.dataset.fee) || 0,
+                    estimatedCost: parseFloat(row.dataset.cost) || 0
+                };
+                this.showViewPanel = true;
+            },
+
+            async submitCreate() {
+                const form = this.$refs.shipmentDrawerForm;
+                if (!form) { window.showToast?.('Form not found. Please refresh the page.', 'error'); return; }
+                const fd = new FormData(form);
+
+                // Collect all values explicitly
+                const origin = (fd.get('Origin') || '').trim();
+                const dest = (fd.get('Destination') || '').trim();
+                const cargo = (fd.get('CargoType') || '').trim();
+                const weightStr = (fd.get('Weight') || '').trim();
+                const weight = parseFloat(weightStr);
+                const carrierId = parseInt(fd.get('CarrierId') || '0', 10);
+                const warehouseId = parseInt(fd.get('WarehouseId') || '0', 10);
+                const dateRaw = (fd.get('ScheduledDate') || '').trim();
+                const volume = (fd.get('Volume') || '').trim();
+                const notes = (fd.get('Notes') || '').trim();
+                const priority = this.newShipmentPriority || 'Standard';
+                const shippingFee = parseFloat(this.newShipmentShippingFee) || 0;
+                const estimatedCost = parseFloat(this.newShipmentEstimatedCost) || 0;
+
+                // Collect handling checkboxes
+                const handlingVals = fd.getAll('Handling');
+
+                // Client-side validation
+                if (!origin) { window.showToast?.('Origin is required.', 'error'); return; }
+                if (!dest) { window.showToast?.('Destination is required.', 'error'); return; }
+                if (!cargo) { window.showToast?.('Cargo type is required.', 'error'); return; }
+                if (!(weight > 0)) { window.showToast?.('Weight must be greater than 0.', 'error'); return; }
+                if (!carrierId) { window.showToast?.('Please select a carrier.', 'error'); return; }
+                if (!dateRaw) { window.showToast?.('Scheduled date is required.', 'error'); return; }
+
+                const token = this.getAntiForgeryToken();
+                const isEditing = this.isEditing;
+                const editingId = parseInt(this.editingShipmentId || '0', 10);
+
+                // Build payload as JSON - avoids ALL culture/model-binding issues
+                const payload = {
+                    Origin: origin,
+                    Destination: dest,
+                    CargoType: cargo,
+                    Weight: weight,
+                    Volume: volume ? parseFloat(volume) : null,
+                    Priority: priority,
+                    ScheduledDate: dateRaw,
+                    CarrierId: carrierId,
+                    WarehouseId: warehouseId || null,
+                    ShippingFee: shippingFee,
+                    EstimatedCost: estimatedCost,
+                    Handling: handlingVals,
+                    Notes: notes || null
+                };
+                if (isEditing) payload.ShipmentId = editingId;
+
+                console.log('=== SUBMIT CREATE (JSON) ===', payload);
+
+                const url = isEditing ? '@Url.Action("Update", "Shipment")' : '@Url.Action("Create", "Shipment")';
+                try {
+                    const res = await fetch(url, {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            '__RequestVerificationToken': token
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    const text = await res.text();
+                    console.log('Response status:', res.status, 'body:', text);
+                    let data;
+                    try { data = JSON.parse(text); }
+                    catch { window.showToast?.('Server error. Please refresh and try again.', 'error'); return; }
+                    const isSuccess = data.success === true || data.Success === true;
+                    const msg = data.message || data.Message || 'Request failed';
+                    if (isSuccess) {
+                        window.showToast?.(msg);
+                        this.showCreatePanel = false;
+                        setTimeout(() => {
+                            window.location.href = window.location.pathname + '?t=' + Date.now();
+                        }, 800);
+                    } else {
+                        window.showToast?.(msg, 'error');
+                    }
+                } catch (err) {
+                    window.showToast?.('Network error. Try again.', 'error');
+                }
+            },
+
+            clearFilters() {
+                this.searchText = '';
+                this.statusFilter = '';
+                this.statusFilterGroup = '';
+                this.carrierFilter = '';
+                this.dateFilter = '';
+            },
+
+            async approveShipment(id) {
+                const sid = parseInt(id, 10);
+                if (!sid) {
+                    window.showToast?.('Invalid shipment.', 'error');
+                    return;
+                }
+                const token = this.getAntiForgeryToken();
+                const fd = new FormData();
+                fd.append('shipmentId', String(sid));
+                if (token) fd.append('__RequestVerificationToken', token);
+                try {
+                    const res = await fetch('@Url.Action("Approve", "Shipment")', {
+                        method: 'POST',
+                        body: fd,
+                        credentials: 'same-origin',
+                        headers: this.antiforgeryHeaders()
+                    });
+                    const text = await res.text();
+                    let data;
+                    try {
+                        data = JSON.parse(text);
+                    } catch {
+                        window.showToast?.('Server error. Refresh and try again.', 'error');
+                        return;
+                    }
+                    const isSuccess = data.success === true || data.Success === true;
+                    const msg = data.message || data.Message || 'Approve failed';
+                    if (isSuccess) {
+                        window.showToast?.(msg);
+                        this.showViewPanel = false;
+                        setTimeout(() => location.reload(), 600);
+                    } else {
+                        window.showToast?.(msg, 'error');
+                    }
+                } catch {
+                    window.showToast?.('Network error.', 'error');
+                }
+            },
+
+            async cancelShipment(id) {
+                const sid = parseInt(id, 10);
+                if (!sid) {
+                    window.showToast?.('Invalid shipment.', 'error');
+                    return;
+                }
+                const result = await Swal.fire({
+                    title: 'Cancel Shipment?',
+                    text: 'This action cannot be undone. The shipment will be permanently cancelled.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Yes, Cancel It',
+                    cancelButtonText: 'Keep Shipment',
+                    confirmButtonColor: '#e11d48',
+                    cancelButtonColor: '#64748b',
+                    background: '#ffffff',
+                    customClass: {
+                        popup: 'rounded-[1.5rem] shadow-2xl',
+                        title: 'text-slate-900 font-bold',
+                        htmlContainer: 'text-slate-500 text-sm',
+                        confirmButton: 'rounded-xl px-6 py-2.5 font-bold text-sm',
+                        cancelButton: 'rounded-xl px-6 py-2.5 font-bold text-sm'
+                    }
+                });
+                if (!result.isConfirmed) return;
+                const token = this.getAntiForgeryToken();
+                const fd = new FormData();
+                fd.append('shipmentId', String(sid));
+                if (token) fd.append('__RequestVerificationToken', token);
+                try {
+                    const res = await fetch('@Url.Action("Cancel", "Shipment")', {
+                        method: 'POST',
+                        body: fd,
+                        credentials: 'same-origin',
+                        headers: this.antiforgeryHeaders()
+                    });
+                    const text = await res.text();
+                    let data;
+                    try {
+                        data = JSON.parse(text);
+                    } catch {
+                        Swal.fire({ title: 'Error', text: 'Server error. Refresh and try again.', icon: 'error', confirmButtonColor: '#0ea5e9' });
+                        return;
+                    }
+                    const isSuccess = data.success === true || data.Success === true;
+                    const msg = data.message || data.Message || 'Cancel failed';
+                    if (isSuccess) {
+                        Swal.fire({ title: 'Success!', text: msg, icon: 'success', confirmButtonColor: '#0ea5e9', customClass: { popup: 'rounded-[1.5rem]', confirmButton: 'rounded-xl px-6 py-2.5 font-bold text-sm' } });
+                        this.showViewPanel = false;
+                        setTimeout(() => location.reload(), 1200);
+                    } else {
+                        Swal.fire({ title: 'Error', text: msg, icon: 'error', confirmButtonColor: '#0ea5e9', customClass: { popup: 'rounded-[1.5rem]', confirmButton: 'rounded-xl px-6 py-2.5 font-bold text-sm' } });
+                    }
+                } catch {
+                    Swal.fire({ title: 'Error', text: 'Network error.', icon: 'error', confirmButtonColor: '#0ea5e9' });
+                }
+            },
+
+            editShipment() {
+                const s = this.selectedShipment;
+                this.showViewPanel = false;
+                this.isEditing = true;
+                this.editingShipmentId = s.shipmentId ? String(s.shipmentId) : '';
+                this.editingShipmentCode = s.shipmentCode || '';
+                this.editingShipmentStatus = s.status || '';
+                this.$nextTick(() => {
+                    this.newShipmentDest = s.destination || '';
+                    this.newShipmentWeight = s.weight || 0;
+                    this.newShipmentCarrierId = s.carrierId != null && s.carrierId !== '' ? String(s.carrierId) : '';
+                    this.newShipmentPriority = s.priority || 'Standard';
+                    this.newShipmentShippingFee = s.shippingFee || 0;
+                    this.newShipmentEstimatedCost = s.estimatedCost || 0;
+                    this.showCreatePanel = true;
+
+                    this.$nextTick(() => {
+                        const panel = this.$refs.shipmentDrawerForm;
+                        if (panel) {
+                            const originInput = panel.querySelector('input[name="Origin"]');
+                            if (originInput) originInput.value = s.origin || '';
+                            const cargoSelect = panel.querySelector('select[name="CargoType"]');
+                            if (cargoSelect) cargoSelect.value = s.cargoType || '';
+                            const dateInput = panel.querySelector('input[name="ScheduledDate"]');
+                            if (dateInput) dateInput.value = s.scheduledDate || '';
+                            const warehouseSelect = panel.querySelector('select[name="WarehouseId"]');
+                            if (warehouseSelect) warehouseSelect.value = s.warehouseId || '';
+                            panel.querySelectorAll('input[name="Handling"]').forEach((cb) => { cb.checked = false; });
+                        }
+                    });
+                });
             }
-        }).catch(() => {
-            showSystemToast('Unable to cancel shipment.', 'error');
-        });
+        };
     }
 </script>
-</body>
-</html>

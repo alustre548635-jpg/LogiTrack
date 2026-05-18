@@ -3,7 +3,7 @@
 @inject LogiTrackDbContext Db
 @{
     var activeNav = (ViewData["ActiveNav"]?.ToString() ?? string.Empty).ToLowerInvariant();
-    var sessionRole = Context.Session.GetString("Role") ?? string.Empty;
+    var sessionRole = (Context.Session.GetString("Role") ?? string.Empty).Trim();
     var sessionUserId = Context.Session.GetString("UserId") ?? string.Empty;
 
     static string NavClass(string activeNavKey, string key)
@@ -34,8 +34,13 @@
     {
         assigned.UnionWith(new[]
         {
-            "Shipments","Routes","Warehouses","Tracking","Freight Costs","Reports","System Settings","Audit Logs","Dashboard"
+            "Shipments","Routes","Warehouses","Tracking","Freight Costs","Reports","System Settings","Audit Logs","Dashboard", "Manage Users"
         });
+    }
+    else if (string.Equals(sessionRole, "Driver", StringComparison.OrdinalIgnoreCase))
+    {
+        // Default modules for Drivers
+        assigned.UnionWith(new[] { "Routes", "Shipments", "Tracking" });
     }
     else if (int.TryParse(sessionUserId, out var uid))
     {
@@ -51,6 +56,8 @@
 
     bool Has(string moduleName) => assigned.Contains(moduleName);
 
+    var hideSidebar = ViewBag.HideSidebar != null && (bool)ViewBag.HideSidebar;
+
     var sessionFullName = "User";
     if (int.TryParse(sessionUserId, out var nameUid))
     {
@@ -59,7 +66,7 @@
             .Select(u => u.FullName)
             .FirstOrDefaultAsync() ?? "User";
     }
-    var displayRole = string.IsNullOrEmpty(sessionRole) ? "User" : sessionRole;
+    var displayRole = string.Equals(sessionRole, "Admin", StringComparison.OrdinalIgnoreCase) ? "Super Admin" : (string.IsNullOrEmpty(sessionRole) ? "User" : sessionRole);
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -72,6 +79,7 @@
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
+        [x-cloak] { display: none !important; }
         body { font-family: 'DM Sans', sans-serif; background-color: #f8fafc; color: #0f172a; }
         .font-display { font-family: 'Barlow Condensed', sans-serif; }
         .sidebar-overlay { transition: opacity 0.3s ease; }
@@ -79,140 +87,422 @@
         .gradient-accent { background: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%); }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-900" x-data="{ sidebarOpen: false }">
+<body class="bg-slate-50 text-slate-900" x-data="{ 
+    sidebarOpen: false, 
+    activeModule: window.location.hash ? window.location.hash.substring(1) : '@(activeNav.StartsWith("admin-") ? "overview" : "")'
+}" @@hashchange.window="activeModule = window.location.hash ? window.location.hash.substring(1) : 'overview'">
     <div class="min-h-screen flex flex-col">
-
-        <!-- Top Header Bar with Burger Menu -->
-        <header class="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 py-3 flex items-center gap-4">
-            <button type="button" @@click="sidebarOpen = true" id="module-burger-btn"
-                    class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-900 text-white hover:bg-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500/40">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-            </button>
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center">
-                    <img src="@Url.Content("~/Images/Logo.png")" alt="LogiTrack" class="object-contain w-full h-full" />
-                </div>
-                <div>
-                    <h1 class="font-display text-lg font-bold leading-tight text-slate-900">@displayRole</h1>
-                    <p class="text-xs text-slate-500 leading-tight">Welcome, <span class="font-semibold text-slate-700">@sessionFullName</span></p>
-                </div>
-            </div>
-        </header>
-
-        <!-- Sidebar Overlay -->
-        <div x-show="sidebarOpen"
-             x-transition:enter="sidebar-overlay" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-             x-transition:leave="sidebar-overlay" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
-             @@click="sidebarOpen = false"
-             class="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
-             style="display: none;"></div>
-
-        <!-- Sidebar Drawer -->
-        <aside x-show="sidebarOpen"
-               x-transition:enter="sidebar-drawer" x-transition:enter-start="-translate-x-full" x-transition:enter-end="translate-x-0"
-               x-transition:leave="sidebar-drawer" x-transition:leave-start="translate-x-0" x-transition:leave-end="-translate-x-full"
-               class="fixed top-0 left-0 z-50 h-full w-72 bg-slate-900 text-slate-100 p-6 overflow-y-auto shadow-2xl"
-               style="display: none;" id="module-sidebar">
-
-            <!-- Close button -->
-            <button type="button" @@click="sidebarOpen = false"
-                    class="absolute top-4 right-4 w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center transition-colors">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </button>
-
-            <div class="mb-8">
-                <div class="w-20 h-20 rounded-2xl overflow-hidden bg-white/10 border border-slate-700 flex items-center justify-center mb-4">
-                    <img src="@Url.Content("~/Images/Logo.png")" alt="LogiTrack" class="object-contain w-full h-full" />
-                </div>
-                <h1 class="font-display text-3xl font-bold">@displayRole</h1>
-                <p class="text-sm text-slate-300">Welcome, <span class="font-bold text-white">@sessionFullName</span></p>
-            </div>
-
-            <nav class="space-y-2 text-sm">
-                @{
-                    var dashboardController =
-                        string.Equals(sessionRole, "Admin", StringComparison.OrdinalIgnoreCase) ? "Admin"
-                        : string.Equals(sessionRole, "Manager", StringComparison.OrdinalIgnoreCase) ? "Manager"
-                        : "Client";
-                }
-                <a href="@Url.Action("Index", dashboardController)" class="@NavClass(activeNav, "dashboard")">
-                    <svg class="w-4 h-4 text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h7v5H4zM13 6h7v5h-7zM4 13h7v5H4zM13 13h7v5h-7z" /></svg>
-                    <span>Dashboard</span>
+ 
+        @if (hideSidebar)
+        {
+            <!-- Guest Tracking Navbar -->
+            <nav class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+                <a href="@Url.Action("Index", "Home")" class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center shadow-sm">
+                        <img src="@Url.Content("~/Images/Logo.png")" alt="LogiTrack" class="object-contain w-full h-full" />
+                    </div>
+                    <div>
+                        <div class="font-display font-bold text-xl text-slate-900 leading-tight">LogiTrack</div>
+                        <div class="text-xs text-orange-600 font-mono">Track Smart. Deliver Faster.</div>
+                    </div>
                 </a>
-
-                @if (Has("Shipments"))
-                {
-                    <a href="@Url.Action("Index", "Shipment")" class="@NavClass(activeNav, "shipment")">
-                        <svg class="w-4 h-4 text-emerald-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20 13V7a2 2 0 00-2-2h-3m5 8l-2.5 5H6.5L4 13m16 0H4m16 0l-3-6H7l-3 6" /></svg>
-                        <span>Shipments</span>
-                    </a>
-                }
-                @if (Has("Routes"))
-                {
-                    <a href="@Url.Action("Index", "Route")" class="@NavClass(activeNav, "route")">
-                        <svg class="w-4 h-4 text-amber-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A2 2 0 013 15.382V6.618a2 2 0 011.105-1.789L9 2m0 18l6-3m-6 3V2m6 15l5.447-2.724A2 2 0 0021 12.382V3.618a2 2 0 00-1.105-1.789L15 2m0 15V2m0 0L9 5" /></svg>
-                        <span>Routes</span>
-                    </a>
-                }
-                @if (Has("Warehouses"))
-                {
-                    <a href="@Url.Action("Index", "Warehouse")" class="@NavClass(activeNav, "warehouse")">
-                        <svg class="w-4 h-4 text-violet-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M5 21V7l7-4 7 4v14M9 11h6m-6 4h6" /></svg>
-                        <span>Warehouses</span>
-                    </a>
-                }
-                @if (Has("Tracking"))
-                {
-                    <a href="@Url.Action("Index", "Tracking")" class="@NavClass(activeNav, "tracking")">
-                        <svg class="w-4 h-4 text-sky-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A2 2 0 013 15.382V6.618a2 2 0 011.105-1.789L9 2m0 18l6-3m-6 3V2m6 15l5.447-2.724A2 2 0 0021 12.382V3.618a2 2 0 00-1.105-1.789L15 2m0 15V2m0 0L9 5" /></svg>
-                        <span>Tracking</span>
-                    </a>
-                }
-                @if (Has("Freight Costs"))
-                {
-                    <a href="@Url.Action("Index", "FreightCost")" class="@NavClass(activeNav, "freightcost")">
-                        <svg class="w-4 h-4 text-rose-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                        <span>Freight Costs</span>
-                    </a>
-                }
-                @if (Has("Reports"))
-                {
-                    <a href="@Url.Action("Index", "Reports")" class="@NavClass(activeNav, "reports")">
-                        <svg class="w-4 h-4 text-cyan-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-6m3 6V7m3 10v-4M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-                        <span>Reports</span>
-                    </a>
-                }
-                @if (Has("System Settings"))
-                {
-                    <a href="@Url.Action("Index", "Client")" class="@NavClass(activeNav, "systemsettings")">
-                        <svg class="w-4 h-4 text-fuchsia-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-1.14 1.603-1.14 1.902 0a1 1 0 001.516.59c.996-.63 2.306.68 1.676 1.676a1 1 0 00.59 1.516c1.14.3 1.14 1.603 0 1.902a1 1 0 00-.59 1.516c.63.996-.68 2.306-1.676 1.676a1 1 0 00-1.516.59c-.3 1.14-1.603 1.14-1.902 0a1 1 0 00-1.516-.59c-.996.63-2.306-.68-1.676-1.676a1 1 0 00-.59-1.516c-1.14-.3-1.14-1.603 0-1.902a1 1 0 00.59-1.516c-.63-.996.68-2.306 1.676-1.676a1 1 0 001.516-.59zM12 10a2 2 0 100 4 2 2 0 000-4z" /></svg>
-                        <span>System Settings</span>
-                    </a>
-                }
-                @if (Has("Audit Logs"))
-                {
-                    <a href="@Url.Action("Index", "Client")#logs" class="@NavClass(activeNav, "auditlogs")">
-                        <svg class="w-4 h-4 text-lime-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-6m3 6V7m3 10v-4M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-                        <span>Audit Logs</span>
-                    </a>
-                }
+                <a href="@Url.Action("Index", "Home")" class="text-sm font-semibold text-slate-600 hover:text-orange-600 transition flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+                    Home
+                </a>
             </nav>
+        }
 
-            <div class="mt-10 pt-6 border-t border-slate-700">
-                <a href="@Url.Action("Logout", "Account")" class="inline-flex w-full items-center justify-center px-4 py-2 rounded-lg bg-sky-600 text-white font-semibold hover:bg-sky-500 transition">
-                    Logout
-                </a>
-            </div>
-        </aside>
+        @if (!hideSidebar)
+        {
+            <!-- Top Header Bar -->
+            <header class="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200 px-8 py-2.5 flex items-center justify-between" x-data="{ profileOpen: false }">
+                <div class="flex items-center gap-4">
+                    <button type="button" @@click="sidebarOpen = true" id="module-burger-btn"
+                            class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-900 text-white hover:bg-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500/40">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center">
+                            <img src="@Url.Content("~/Images/Logo.png")" alt="LogiTrack" class="object-contain w-full h-full" />
+                        </div>
+                        <div>
+                            <h1 class="font-display text-lg font-bold leading-tight text-slate-900">@displayRole Dashboard</h1>
+                            <p class="text-[10px] text-slate-500 leading-tight">System overview for @DateTime.Now.ToString("MMMM yyyy")</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User Profile Dropdown -->
+                <div class="relative">
+                    <button @@click="profileOpen = !profileOpen" @@click.away="profileOpen = false"
+                            class="flex items-center gap-3 p-1 pr-3 rounded-xl hover:bg-slate-50 transition-all border border-transparent hover:border-slate-200">
+                        <div class="w-9 h-9 rounded-lg bg-sky-600 flex items-center justify-center text-white shadow-sm overflow-hidden">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                        </div>
+                        <div class="text-left hidden md:block">
+                            <p class="text-sm font-bold text-slate-900 leading-tight">@sessionFullName</p>
+                            <span class="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded uppercase border border-amber-200/50">@displayRole</span>
+                        </div>
+                    </button>
+
+                    <!-- Dropdown Menu -->
+                    <div x-show="profileOpen"
+                         x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+                         x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+                         class="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden"
+                         style="display: none;">
+                        <div class="p-4 border-b border-slate-100 bg-slate-50/50">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Logged in as</p>
+                            <p class="text-sm font-bold text-slate-900">@sessionFullName</p>
+                            <p class="text-xs text-slate-500 truncate">@Context.Session.GetString("Email")</p>
+                        </div>
+                        <div class="p-2">
+                            <a href="@Url.Action("Index", "Profile")" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-50 hover:text-sky-600 transition-colors">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                My Profile
+                            </a>
+                        </div>
+                        <div class="p-2 border-t border-slate-100">
+                            <a href="@Url.Action("Logout", "Account")" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-rose-600 hover:bg-rose-50 transition-colors font-semibold">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                                Logout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </header>
+        }
+
+        @if (!hideSidebar)
+        {
+            <!-- Sidebar Overlay -->
+            <div x-show="sidebarOpen"
+                 x-transition:enter="sidebar-overlay" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+                 x-transition:leave="sidebar-overlay" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+                 @@click="sidebarOpen = false"
+                 class="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+                 style="display: none;"></div>
+
+            <!-- Sidebar Drawer -->
+            <aside x-show="sidebarOpen"
+                   x-transition:enter="sidebar-drawer" x-transition:enter-start="-translate-x-full" x-transition:enter-end="translate-x-0"
+                   x-transition:leave="sidebar-drawer" x-transition:leave-start="translate-x-0" x-transition:leave-end="-translate-x-full"
+                   class="fixed top-0 left-0 z-50 h-full w-72 bg-slate-900 text-slate-100 p-6 overflow-y-auto shadow-2xl"
+                   style="display: none;" id="module-sidebar">
+
+                <!-- Close button -->
+                <button type="button" @@click="sidebarOpen = false"
+                        class="absolute top-4 right-4 w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center transition-colors">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+
+                <div class="mb-8">
+                    <div class="w-20 h-20 rounded-2xl overflow-hidden bg-white/10 border border-slate-700 flex items-center justify-center mb-4">
+                        <img src="@Url.Content("~/Images/Logo.png")" alt="LogiTrack" class="object-contain w-full h-full" />
+                    </div>
+                    <h1 class="font-display text-3xl font-bold">@displayRole</h1>
+                    @if (string.Equals(sessionRole, "Admin", StringComparison.OrdinalIgnoreCase))
+                    {
+                        <p class="text-sm text-slate-300">LogiTrack Control Panel</p>
+                    }
+                    else
+                    {
+                        <p class="text-sm text-slate-300">Welcome, <span class="font-bold text-white">@sessionFullName</span></p>
+                    }
+                </div>
+
+                <nav class="text-sm">
+                    @if (string.Equals(sessionRole, "Admin", StringComparison.OrdinalIgnoreCase))
+                    {
+                        @* ── SUPER ADMIN COMMAND CENTER ── *@
+                        <div class="mb-6">
+                            <p class="text-[11px] font-bold tracking-widest text-sky-400 uppercase mb-2 px-3">Command Center</p>
+                            <div class="space-y-1">
+                                <a href="@Url.Action("Index", "Admin")#overview" 
+                                   @@click.prevent="activeModule = 'overview'; sidebarOpen = false; window.location.href = '@Url.Action("Index", "Admin")#overview'"
+                                   :class="activeModule === 'overview' ? 'bg-slate-800 font-semibold' : ''"
+                                   class="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-800 transition text-left">
+                                    <svg class="w-4 h-4 text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h7v5H4zM13 6h7v5h-7zM4 13h7v5H4zM13 13h7v5h-7z" /></svg>
+                                    <span>System Overview</span>
+                                </a>
+                                <a href="@Url.Action("Index", "Admin")#logs" 
+                                   @@click.prevent="activeModule = 'logs'; sidebarOpen = false; window.location.href = '@Url.Action("Index", "Admin")#logs'"
+                                   :class="activeModule === 'logs' ? 'bg-slate-800 font-semibold' : ''"
+                                   class="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-800 transition text-left">
+                                    <svg class="w-4 h-4 text-cyan-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    <span>Activity & Audit Logs</span>
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="mb-6">
+                            <p class="text-[11px] font-bold tracking-widest text-emerald-400 uppercase mb-2 px-3">Infrastructure</p>
+                            <div class="space-y-1">
+                                <a href="@Url.Action("Index", "Warehouse")" class="@NavClass(activeNav, "warehouse")">
+                                    <svg class="w-4 h-4 text-emerald-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                                    <span>Warehouses & Hubs</span>
+                                </a>
+                                <a href="@Url.Action("Index", "FreightCost")" class="@NavClass(activeNav, "freightcost")">
+                                    <svg class="w-4 h-4 text-lime-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    <span>Freight Costs & Carriers</span>
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="mb-6">
+                            <p class="text-[11px] font-bold tracking-widest text-amber-400 uppercase mb-2 px-3">Global Operations</p>
+                            <div class="space-y-1">
+                                <a href="@Url.Action("Index", "Shipment")" class="@NavClass(activeNav, "shipment")">
+                                    <svg class="w-4 h-4 text-amber-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+                                    <span>All Shipments</span>
+                                </a>
+                                <a href="@Url.Action("Index", "Route")" class="@NavClass(activeNav, "route")">
+                                    <svg class="w-4 h-4 text-orange-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>
+                                    <span>Active Routes</span>
+                                </a>
+                                <a href="@Url.Action("Index", "Financial")" class="@NavClass(activeNav, "financial")" style="display:none;">
+                                    <svg class="w-4 h-4 text-emerald-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    <span>Financials & Billing</span>
+                                </a>
+                                <a href="@Url.Action("Index", "Tracking")" class="@NavClass(activeNav, "tracking")">
+                                    <svg class="w-4 h-4 text-rose-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                    <span>Live Tracking Map</span>
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="mb-6">
+                            <p class="text-[11px] font-bold tracking-widest text-fuchsia-400 uppercase mb-2 px-3">System Admin</p>
+                            <div class="space-y-1">
+                                <a href="@Url.Action("Index", "Admin")#manage-users" 
+                                   @@click.prevent="activeModule = 'manage-users'; sidebarOpen = false; window.location.href = '@Url.Action("Index", "Admin")#manage-users'"
+                                   :class="activeModule === 'manage-users' ? 'bg-slate-800 font-semibold' : ''"
+                                   class="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-800 transition text-left">
+                                    <svg class="w-4 h-4 text-fuchsia-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5V4H2v16h5m10 0v-2a4 4 0 00-8 0v2m8 0H9m4-10a3 3 0 100-6 3 3 0 000 6z" /></svg>
+                                    <span>Manage Users & Roles</span>
+                                </a>
+                                <a href="@Url.Action("Index", "Admin")#settings" 
+                                   @@click.prevent="activeModule = 'settings'; sidebarOpen = false; window.location.href = '@Url.Action("Index", "Admin")#settings'"
+                                   :class="activeModule === 'settings' ? 'bg-slate-800 font-semibold' : ''"
+                                   class="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-800 transition text-left">
+                                    <svg class="w-4 h-4 text-purple-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-1.14 1.603-1.14 1.902 0a1 1 0 001.516.59c.996-.63 2.306.68 1.676 1.676a1 1 0 00.59 1.516c1.14.3 1.14 1.603 0 1.902a1 1 0 00-.59 1.516c.63.996-.68 2.306-1.676 1.676a1 1 0 00-1.516.59c-.3 1.14-1.603 1.14-1.902 0a1 1 0 00-1.516-.59c-.996.63-2.306-.68-1.676-1.676a1 1 0 00-.59-1.516c-1.14-.3-1.14-1.603 0-1.902a1 1 0 00.59-1.516c-.63-.996.68-2.306 1.676-1.676a1 1 0 001.516-.59zM12 10a2 2 0 100 4 2 2 0 000-4z" /></svg>
+                                    <span>Global Settings</span>
+                                </a>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        var dashboardController =
+                            string.Equals(sessionRole, "Manager", StringComparison.OrdinalIgnoreCase) ? "Manager"
+                            : "Client";
+
+                        @* ── STANDARD NAV ── *@
+                        @if (Has("Dashboard"))
+                        {
+                            <div class="mb-5">
+                                <p class="text-[11px] font-bold tracking-widest text-sky-400 uppercase mb-2 px-3">Main</p>
+                                <div class="space-y-1">
+                                    <a href="@Url.Action("Index", dashboardController)" class="@NavClass(activeNav, "dashboard")">
+                                        <svg class="w-4 h-4 text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h7v5H4zM13 6h7v5h-7zM4 13h7v5H4zM13 13h7v5h-7z" /></svg>
+                                        <span>Dashboard</span>
+                                    </a>
+                                </div>
+                            </div>
+                        }
+
+                        @* ── OPERATIONS ── *@
+                        @if (Has("Shipments") || Has("Routes") || Has("Tracking"))
+                        {
+                            <div class="mb-5">
+                                <p class="text-[11px] font-bold tracking-widest text-sky-400 uppercase mb-2 px-3">Operations</p>
+                                <div class="space-y-1">
+                                    @if (Has("Shipments"))
+                                    {
+                                        <a href="@Url.Action("Index", "Shipment")" class="@NavClass(activeNav, "shipment")">
+                                            <svg class="w-4 h-4 text-emerald-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20 13V7a2 2 0 00-2-2h-3m5 8l-2.5 5H6.5L4 13m16 0H4m16 0l-3-6H7l-3 6" /></svg>
+                                            <span>Shipments</span>
+                                        </a>
+                                    }
+                                    @if (Has("Routes"))
+                                    {
+                                        <a href="@Url.Action("Index", "Route")" class="@NavClass(activeNav, "route")">
+                                            <svg class="w-4 h-4 text-amber-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A2 2 0 013 15.382V6.618a2 2 0 011.105-1.789L9 2m0 18l6-3m-6 3V2m6 15l5.447-2.724A2 2 0 0021 12.382V3.618a2 2 0 00-1.105-1.789L15 2m0 15V2m0 0L9 5" /></svg>
+                                            <span>Routes</span>
+                                        </a>
+                                    }
+                                    @if (Has("Tracking"))
+                                    {
+                                        <a href="@Url.Action("Index", "Tracking")" class="@NavClass(activeNav, "tracking")">
+                                            <svg class="w-4 h-4 text-sky-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                            <span>Tracking</span>
+                                        </a>
+                                    }
+                                </div>
+                            </div>
+                        }
+
+                        @* ── LOGISTICS ── *@
+                        @if (Has("Warehouses") || Has("Freight Costs"))
+                        {
+                            <div class="mb-5">
+                                <p class="text-[11px] font-bold tracking-widest text-sky-400 uppercase mb-2 px-3">Logistics</p>
+                                <div class="space-y-1">
+                                    @if (Has("Warehouses"))
+                                    {
+                                        <a href="@Url.Action("Index", "Warehouse")" class="@NavClass(activeNav, "warehouse")">
+                                            <svg class="w-4 h-4 text-violet-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M5 21V7l7-4 7 4v14M9 11h6m-6 4h6" /></svg>
+                                            <span>@(string.Equals(sessionRole, "Staff", StringComparison.OrdinalIgnoreCase) ? "Hub Operations" : "Warehouses")</span>
+                                        </a>
+                                    }
+                                    @if (Has("Freight Costs"))
+                                    {
+                                        <a href="@Url.Action("Index", "FreightCost")" class="@NavClass(activeNav, "freightcost")">
+                                            <svg class="w-4 h-4 text-rose-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                            <span>Freight Costs</span>
+                                        </a>
+                                    }
+                                </div>
+                            </div>
+                        }
+
+                        @* ── ANALYTICS ── *@
+                        @if (Has("Reports"))
+                        {
+                            <div class="mb-5">
+                                <p class="text-[11px] font-bold tracking-widest text-sky-400 uppercase mb-2 px-3">Analytics</p>
+                                <div class="space-y-1">
+                                    <a href="@Url.Action("Index", "Reports")" class="@NavClass(activeNav, "reports")">
+                                        <svg class="w-4 h-4 text-cyan-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-6m3 6V7m3 10v-4M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                                        <span>Reports</span>
+                                    </a>
+                                </div>
+                            </div>
+                        }
+
+                        @* ── SYSTEM ── *@
+                        @if (Has("System Settings") || Has("Audit Logs"))
+                        {
+                            <div class="mb-5">
+                                <p class="text-[11px] font-bold tracking-widest text-sky-400 uppercase mb-2 px-3">System</p>
+                                <div class="space-y-1">
+                                    @if (Has("System Settings"))
+                                    {
+                                        <a href="@Url.Action("Index", "Client")" class="@NavClass(activeNav, "systemsettings")">
+                                            <svg class="w-4 h-4 text-fuchsia-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-1.14 1.603-1.14 1.902 0a1 1 0 001.516.59c.996-.63 2.306.68 1.676 1.676a1 1 0 00.59 1.516c1.14.3 1.14 1.603 0 1.902a1 1 0 00-.59 1.516c.63.996-.68 2.306-1.676 1.676a1 1 0 00-1.516.59c-.3 1.14-1.603 1.14-1.902 0a1 1 0 00-1.516-.59c-.996.63-2.306-.68-1.676-1.676a1 1 0 00-.59-1.516c-1.14-.3-1.14-1.603 0-1.902a1 1 0 00.59-1.516c-.63-.996.68-2.306 1.676-1.676a1 1 0 001.516-.59zM12 10a2 2 0 100 4 2 2 0 000-4z" /></svg>
+                                            <span>System Settings</span>
+                                        </a>
+                                    }
+                                    @if (Has("Audit Logs"))
+                                    {
+                                        <a href="@Url.Action("Index", "Client")#logs" class="@NavClass(activeNav, "auditlogs")">
+                                            <svg class="w-4 h-4 text-lime-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                            <span>Audit Logs</span>
+                                        </a>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    }
+                </nav>
+
+                <div class="mt-10 pt-6 border-t border-slate-700">
+                    <a href="@Url.Action("Logout", "Account")" class="inline-flex w-full items-center justify-center px-4 py-2 rounded-lg bg-sky-600 text-white font-semibold hover:bg-sky-500 transition">
+                        Logout
+                    </a>
+                </div>
+            </aside>
+        }
 
         <main class="flex-1 p-6 lg:p-8">
             @RenderBody()
         </main>
     </div>
+
+    <!-- GLOBAL SYSTEM MODALS & NOTIFICATIONS -->
+    <div x-data="{ 
+        toasts: [], 
+        confirm: { show: false, title: '', message: '' } 
+    }" 
+    @@notify.window="toasts.push({ id: Date.now(), message: $event.detail.message, type: $event.detail.type || 'success' }); setTimeout(() => { toasts = toasts.filter(t => t.id !== toasts[0]?.id) }, 4000)"
+    @@confirm.window="confirm.show = true; confirm.title = $event.detail.title; confirm.message = $event.detail.message;"
+    class="fixed inset-0 z-[9999] pointer-events-none">
+        
+        <!-- GLOBAL CONFIRM MODAL -->
+        <div x-show="confirm.show" 
+             x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+             class="fixed inset-0 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 pointer-events-auto">
+            <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-8 animate-[fadeScaleIn_0.2s_ease-out]">
+                <div class="flex flex-col items-center text-center">
+                    <div class="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mb-6">
+                        <svg class="w-8 h-8 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-display font-bold text-slate-900 uppercase tracking-tight" x-text="confirm.title"></h3>
+                    <p class="text-sm text-slate-500 mt-2" x-text="confirm.message"></p>
+                </div>
+                <div class="flex gap-3 mt-8">
+                    <button @@click="if(window._confirmResolve) window._confirmResolve(false); confirm.show = false" 
+                            class="flex-1 px-6 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition">Cancel</button>
+                    <button @@click="if(window._confirmResolve) window._confirmResolve(true); confirm.show = false" 
+                            class="flex-1 px-6 py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition shadow-lg">Confirm</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- GLOBAL TOASTS -->
+        <div class="fixed top-6 right-6 flex flex-col gap-3 max-w-sm w-full">
+            <template x-for="toast in toasts" :key="toast.id">
+                <div x-show="true"
+                     x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-x-12" x-transition:enter-end="opacity-100 translate-x-0"
+                     x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 translate-x-0" x-transition:leave-end="opacity-0 translate-x-12"
+                     :class="{
+                        'bg-white border-emerald-100': toast.type === 'success',
+                        'bg-white border-red-100': toast.type === 'error',
+                        'bg-white border-sky-100': toast.type === 'info'
+                     }"
+                     class="pointer-events-auto border-2 p-4 rounded-2xl shadow-xl flex items-start gap-4">
+                    <div :class="{
+                        'bg-emerald-100 text-emerald-600': toast.type === 'success',
+                        'bg-red-100 text-red-600': toast.type === 'error',
+                        'bg-sky-100 text-sky-600': toast.type === 'info'
+                    }" class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <template x-if="toast.type === 'success'"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M5 13l4 4L19 7" stroke-width="3"/></svg></template>
+                        <template x-if="toast.type === 'error'"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M6 18L18 6M6 6l12 12" stroke-width="3"/></svg></template>
+                        <template x-if="toast.type === 'info'"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="3"/></svg></template>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm font-bold text-slate-900" x-text="toast.type.toUpperCase()"></p>
+                        <p class="text-xs text-slate-500 mt-0.5" x-text="toast.message"></p>
+                    </div>
+                    <button @@click="toasts = toasts.filter(t => t.id !== toast.id)" class="text-slate-300 hover:text-slate-400">&times;</button>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <script>
+        window._confirmResolve = null;
+        
+        window.showToast = function(message, type = 'success') {
+            window.dispatchEvent(new CustomEvent('notify', { detail: { message, type } }));
+        };
+
+        window.showConfirm = function(title, message) {
+            return new Promise((resolve) => {
+                window._confirmResolve = resolve;
+                window.dispatchEvent(new CustomEvent('confirm', { detail: { title, message } }));
+            });
+        };
+    </script>
+
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

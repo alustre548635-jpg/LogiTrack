@@ -1,14 +1,21 @@
-﻿@model LogiTrack.Models.WarehouseDashboardViewModel
+@model LogiTrack.Models.WarehouseDashboardViewModel
 @{
     ViewData["Title"] = "Warehouses";
     ViewData["ActiveNav"] = "warehouse";
     Layout = "_ModuleLayout";
+
+    var currentRole = (ViewBag.UserRole as string ?? string.Empty).Trim();
+    var isStaffPOV = currentRole.Contains("Staff", StringComparison.OrdinalIgnoreCase);
 }
 
-@if (Model.SelectedWarehouse == null)
+@if (isStaffPOV && Model.SelectedWarehouse != null)
+{
+    @await Html.PartialAsync("_StaffPOV", Model)
+}
+else if (Model.SelectedWarehouse == null)
 {
     <div class="rounded-2xl bg-white border border-slate-200 p-6">
-        <h2 class="font-display text-3xl font-bold">Warehouses</h2>
+        <h2 class="font-display text-3xl font-bold uppercase tracking-wide">Warehouses</h2>
         <p class="text-slate-600 mt-2">No active warehouses found.</p>
     </div>
 }
@@ -18,12 +25,22 @@ else
     <div class="space-y-6" x-data="{ tab: 'overview' }">
         <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
-                <h1 class="font-display text-4xl font-bold text-slate-900">Warehouses</h1>
+                <h1 class="font-display text-4xl font-bold text-slate-900 uppercase tracking-wide">Warehouses</h1>
                 <p class="text-slate-600">Capacity, queues, dock schedules, and staff overview.</p>
             </div>
 
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <form method="get" action="@Url.Action("Index","Warehouse")" class="flex items-center gap-2">
+                <form method="get" action="@Url.Action("Index","Warehouse")" class="flex items-center gap-3">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" name="includeDeactivated" value="true" id="chkDeactivated" 
+                               @(ViewBag.IncludeDeactivated == true ? "checked" : "")
+                               onchange="this.form.submit()"
+                               class="rounded border-slate-300 text-sky-600 focus:ring-sky-500" />
+                        <label for="chkDeactivated" class="text-xs text-slate-500 cursor-pointer">Show Deactivated</label>
+                    </div>
+
+                    <div class="h-6 w-px bg-slate-200"></div>
+
                     <label class="text-xs text-slate-500">Warehouse</label>
                     <select name="warehouseId"
                             class="bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
@@ -31,7 +48,7 @@ else
                         @foreach (var wh in Model.Warehouses)
                         {
                             <option value="@wh.WarehouseId" selected="@(wh.WarehouseId == w.WarehouseId)">
-                                @wh.Name (@wh.Location)
+                                @(wh.IsActive ? "" : "[DEACTIVATED] ") @wh.Name (@wh.Location)
                             </option>
                         }
                     </select>
@@ -41,9 +58,22 @@ else
                     <span class="px-3 py-2 rounded-xl text-sm border border-slate-200 bg-slate-50 text-slate-700">
                         Utilization: <span class="font-semibold">@Model.UtilizationPct%</span>
                     </span>
-                    <span class="px-3 py-2 rounded-xl text-sm border border-emerald-200 bg-emerald-50 text-emerald-700">
-                        Active
-                    </span>
+                    @if (w.IsActive)
+                    {
+                        <span class="px-3 py-2 rounded-xl text-sm border border-emerald-200 bg-emerald-50 text-emerald-700">
+                            Active
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="px-3 py-2 rounded-xl text-sm border border-red-200 bg-red-50 text-red-700">
+                            Deactivated
+                        </span>
+                        <button type="button" onclick="toggleWarehouse(@w.WarehouseId, true)" 
+                                class="px-4 py-2 rounded-xl text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-500 transition shadow-lg shadow-emerald-500/20">
+                            Reactivate Hub
+                        </button>
+                    }
                 </div>
             </div>
         </div>
@@ -64,12 +94,12 @@ else
             </div>
 
             <div class="rounded-2xl bg-white border border-slate-200 p-5">
-                <p class="text-xs text-slate-500 uppercase tracking-wider">Outbound (In Transit)</p>
+                <p class="text-xs text-slate-500 uppercase tracking-wider">Outbound (Received)</p>
                 <p class="text-3xl font-bold mt-2">@Model.OutboundInTransit</p>
             </div>
 
             <div class="rounded-2xl bg-white border border-slate-200 p-5">
-                <p class="text-xs text-slate-500 uppercase tracking-wider">Delivered Today</p>
+                <p class="text-xs text-slate-500 uppercase tracking-wider">Dispatched</p>
                 <p class="text-3xl font-bold mt-2">@Model.DeliveredToday</p>
             </div>
 
@@ -79,28 +109,87 @@ else
             </div>
         </div>
 
-        <div class="flex flex-wrap gap-2">
-            <button type="button" @@click="tab = 'overview'"
-                    :class="tab === 'overview' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'"
-                    class="px-4 py-2 rounded-xl text-sm font-semibold transition">
-                Overview
-            </button>
-            <button type="button" @@click="tab = 'queues'"
-                    :class="tab === 'queues' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'"
-                    class="px-4 py-2 rounded-xl text-sm font-semibold transition">
-                Queues
-            </button>
-            <button type="button" @@click="tab = 'docks'"
-                    :class="tab === 'docks' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'"
-                    class="px-4 py-2 rounded-xl text-sm font-semibold transition">
-                Docks
-            </button>
-            <button type="button" @@click="tab = 'staff'"
-                    :class="tab === 'staff' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'"
-                    class="px-4 py-2 rounded-xl text-sm font-semibold transition">
-                Staff
-            </button>
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <div class="flex flex-wrap gap-2">
+                <button type="button" @@click="tab = 'overview'"
+                        :class="tab === 'overview' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'"
+                        class="px-4 py-2 rounded-xl text-sm font-semibold transition">
+                    Overview
+                </button>
+                <button type="button" @@click="tab = 'queues'"
+                        :class="tab === 'queues' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'"
+                        class="px-4 py-2 rounded-xl text-sm font-semibold transition">
+                    Queues
+                </button>
+                <button type="button" @@click="tab = 'docks'"
+                        :class="tab === 'docks' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'"
+                        class="px-4 py-2 rounded-xl text-sm font-semibold transition">
+                    Docks
+                </button>
+                <button type="button" @@click="tab = 'staff'"
+                        :class="tab === 'staff' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'"
+                        class="px-4 py-2 rounded-xl text-sm font-semibold transition">
+                    Staff
+                </button>
+
+                @if (!isStaffPOV)
+                {
+                    <button type="button" @@click="tab = 'management'"
+                            :class="tab === 'management' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'"
+                            class="px-4 py-2 rounded-xl text-sm font-semibold transition">
+                        Management
+                    </button>
+                }
+            </div>
+
+            @if (currentRole == "Admin")
+            {
+                <button type="button" onclick="document.getElementById('wh-create-overlay').style.display='flex'" 
+                        class="px-6 py-2 rounded-xl text-sm font-bold bg-sky-600 text-white hover:bg-sky-500 transition shadow-lg shadow-sky-500/20 flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+                    Add New Warehouse
+                </button>
+            }
         </div>
+
+        <section x-show="tab === 'docks'" class="space-y-6">
+            <div class="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
+                <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                    <h3 class="font-bold text-slate-900 uppercase tracking-tight">Loading Dock Daily Timeline - @DateTime.Today.ToString("MMM dd, yyyy")</h3>
+                    <div class="flex gap-2">
+                        <span class="flex items-center gap-1 text-[10px] font-bold text-slate-500"><span class="w-2.5 h-2.5 bg-sky-500 rounded-full"></span> Scheduled</span>
+                        <span class="flex items-center gap-1 text-[10px] font-bold text-slate-500"><span class="w-2.5 h-2.5 bg-emerald-500 rounded-full"></span> Loading</span>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <div class="min-w-[900px]">
+                        <div class="grid grid-cols-13 border-b border-slate-100 bg-slate-50/50">
+                            <div class="p-3 border-r border-slate-100 text-[10px] font-black text-slate-400 uppercase text-center">Dock #</div>
+                            @for (int h = 8; h <= 18; h++) {
+                                <div class="p-3 border-r border-slate-100 text-[10px] font-black text-slate-400 uppercase text-center">@(h > 12 ? h-12 + " PM" : h + " AM")</div>
+                            }
+                        </div>
+                        @for (int d = 1; d <= 8; d++) {
+                            <div class="grid grid-cols-13 border-b border-slate-100 h-20">
+                                <div class="p-3 border-r border-slate-100 bg-slate-50/30 flex items-center justify-center font-black text-slate-400">#@d</div>
+                                @for (int h = 8; h <= 18; h++) {
+                                    var schedule = Model.DockSchedules.FirstOrDefault(s => s.DockNumber == d && s.StartTime.Hour == h);
+                                    <div class="p-1 border-r border-slate-100 relative group">
+                                        @if (schedule != null) {
+                                            <div class="h-full w-full rounded-xl p-2 text-[9px] font-bold transition-all hover:scale-[1.02] cursor-pointer
+                                                @(schedule.Status == "Loading" ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "bg-sky-100 text-sky-700 border border-sky-200")">
+                                                <p class="truncate">@schedule.Shipment?.ShipmentCode</p>
+                                                <p class="opacity-80">@schedule.StartTime.ToString("HH:mm")</p>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </section>
 
         <section x-show="tab === 'overview'" class="space-y-6">
             <div class="rounded-2xl bg-white border border-slate-200 p-6">
@@ -299,5 +388,208 @@ else
                 }
             </div>
         </section>
+
+        @if (!isStaffPOV)
+        {
+            <section x-show="tab === 'management'" class="space-y-6">
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    <!-- Edit Warehouse -->
+                    <div class="rounded-2xl bg-white border border-slate-200 p-6">
+                        <h3 class="font-display text-2xl font-bold mb-4">Edit Details</h3>
+                        <form onsubmit="updateWarehouse(event)" class="space-y-4">
+                            <input type="hidden" name="warehouseId" value="@w.WarehouseId" />
+                            <div>
+                                <label class="block text-xs text-slate-500 mb-1">Name</label>
+                                <input type="text" name="name" value="@w.Name" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500/20" />
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-500 mb-1">Location</label>
+                                <input type="text" name="location" value="@w.Location" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500/20" />
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-500 mb-1">Total Capacity (Slots)</label>
+                                <input type="number" name="capacity" value="@w.TotalCapacity" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500/20" />
+                            </div>
+                            <div class="pt-2 flex items-center justify-between">
+                                <button type="submit" class="px-6 py-2.5 bg-slate-900 text-white font-semibold rounded-xl hover:bg-slate-800 transition">Save Changes</button>
+                                
+                                @if (w.IsActive)
+                                {
+                                    <button type="button" onclick="toggleWarehouse(@w.WarehouseId, false)" class="px-4 py-2 text-sm font-semibold text-red-600 border border-red-200 rounded-xl hover:bg-red-50 transition">Deactivate</button>
+                                }
+                                else
+                                {
+                                    <button type="button" onclick="toggleWarehouse(@w.WarehouseId, true)" class="px-4 py-2 text-sm font-semibold text-emerald-600 border border-emerald-200 rounded-xl hover:bg-emerald-50 transition">Activate</button>
+                                }
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Manage Zones -->
+                    <div class="rounded-2xl bg-white border border-slate-200 p-6">
+                        <h3 class="font-display text-2xl font-bold mb-4">Manage Zones</h3>
+                        <div class="space-y-4">
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full text-sm">
+                                    <thead>
+                                        <tr class="text-left text-slate-500 border-b border-slate-200">
+                                            <th class="py-2 pr-3">Zone</th>
+                                            <th class="py-2 pr-3">Type</th>
+                                            <th class="py-2 pr-3 text-right">Slots</th>
+                                            <th class="py-2 pl-3"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100">
+                                        @foreach (var z in Model.Zones)
+                                        {
+                                            <tr>
+                                                <td class="py-2.5 pr-3 font-semibold">@z.ZoneName</td>
+                                                <td class="py-2.5 pr-3 text-slate-600">@z.ZoneType</td>
+                                                <td class="py-2.5 pr-3 text-right">@z.TotalSlots</td>
+                                                <td class="py-2.5 pl-3 text-right">
+                                                    <button type="button" onclick="deleteZone(@z.ZoneId)" class="text-red-500 hover:text-red-700 transition">
+                                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <details class="group border border-slate-200 rounded-xl overflow-hidden">
+                                <summary class="px-4 py-3 bg-slate-50 cursor-pointer font-semibold text-slate-900 group-open:border-b group-open:border-slate-200">
+                                    + Add New Zone
+                                </summary>
+                                <form onsubmit="addZone(event)" class="p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    <input type="hidden" name="warehouseId" value="@w.WarehouseId" />
+                                    <div class="sm:col-span-1">
+                                        <label class="block text-[10px] text-slate-500 uppercase mb-1">Name</label>
+                                        <input type="text" name="name" required placeholder="e.g. Zone A" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-sky-500/20" />
+                                    </div>
+                                    <div class="sm:col-span-1">
+                                        <label class="block text-[10px] text-slate-500 uppercase mb-1">Type</label>
+                                        <select name="type" required class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-sky-500/20">
+                                            <option>General</option>
+                                            <option>Cold Storage</option>
+                                            <option>Hazmat</option>
+                                            <option>High Value</option>
+                                        </select>
+                                    </div>
+                                    <div class="sm:col-span-1">
+                                        <label class="block text-[10px] text-slate-500 uppercase mb-1">Slots</label>
+                                        <div class="flex gap-2">
+                                            <input type="number" name="slots" required value="100" class="flex-1 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-sky-500/20" />
+                                            <button type="submit" class="bg-sky-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-sky-500">Add</button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </details>
+                        </div>
+                    </div>
+                </div>
+
+
+            </section>
+        }
     </div>
 }
+
+<!-- Create Warehouse Modal -->
+<div id="wh-create-overlay" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4" style="display:none;">
+    <div class="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl animate-[fadeScaleIn_0.2s_ease-out] overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+            <h3 class="text-xl font-display font-bold text-slate-900 uppercase tracking-wide">Create New Warehouse</h3>
+            <button type="button" onclick="document.getElementById('wh-create-overlay').style.display='none'" class="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
+        </div>
+        <form onsubmit="createWarehouse(event)" class="p-6 space-y-4">
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Warehouse Name</label>
+                <input type="text" name="name" required placeholder="e.g. North Hub" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-sky-500/20" />
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Full Location Address</label>
+                <input type="text" name="location" required placeholder="Street, City, Country" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-sky-500/20" />
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Total Slot Capacity</label>
+                <input type="number" name="capacity" required value="1000" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-sky-500/20" />
+            </div>
+            <div class="pt-4 flex gap-2">
+                <button type="button" onclick="document.getElementById('wh-create-overlay').style.display='none'" class="flex-1 px-6 py-3 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition">Cancel</button>
+                <button type="submit" class="flex-1 px-6 py-3 gradient-accent text-white font-bold rounded-xl shadow-lg transition active:scale-[0.98]">Add Warehouse</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Scripts for Admin Actions -->
+<script>
+    async function updateWarehouse(e) {
+        e.preventDefault();
+        const f = new FormData(e.target);
+        const res = await fetch('/Warehouse/Update', { method: 'POST', body: f });
+        const d = await res.json();
+        if (d.success) {
+            window.showToast(d.message);
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            window.showToast(d.message, 'error');
+        }
+    }
+
+    async function toggleWarehouse(id, active) {
+        const url = active ? '/Warehouse/Activate' : '/Warehouse/Deactivate';
+        const f = new FormData();
+        f.append('warehouseId', id);
+        const res = await fetch(url, { method: 'POST', body: f });
+        const d = await res.json();
+        if (d.success) {
+            window.showToast(d.message);
+            setTimeout(() => location.reload(), 1000);
+        }
+    }
+
+    async function addZone(e) {
+        e.preventDefault();
+        const f = new FormData(e.target);
+        const res = await fetch('/Warehouse/AddZone', { method: 'POST', body: f });
+        const d = await res.json();
+        if (d.success) {
+            window.showToast(d.message);
+            setTimeout(() => location.reload(), 800);
+        } else {
+            window.showToast(d.message, 'error');
+        }
+    }
+
+    async function deleteZone(id) {
+        if (!confirm('Are you sure you want to delete this zone?')) return;
+        const f = new FormData();
+        f.append('zoneId', id);
+        const res = await fetch('/Warehouse/DeleteZone', { method: 'POST', body: f });
+        const d = await res.json();
+        if (d.success) {
+            window.showToast(d.message);
+            setTimeout(() => location.reload(), 800);
+        } else {
+            window.showToast(d.message, 'error');
+        }
+    }
+
+    async function createWarehouse(e) {
+        e.preventDefault();
+        const f = new FormData(e.target);
+        const res = await fetch('/Warehouse/Create', { method: 'POST', body: f });
+        const d = await res.json();
+        if (d.success) {
+            window.showToast(d.message);
+            setTimeout(() => location.href = '/Warehouse/Index?warehouseId=' + d.warehouseId, 1000);
+        } else {
+            window.showToast(d.message, 'error');
+        }
+    }
+</script>
+
+
+

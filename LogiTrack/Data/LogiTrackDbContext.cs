@@ -1,4 +1,4 @@
-﻿using LogiTrack.Models;
+using LogiTrack.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Threading;
@@ -26,5 +26,10 @@ namespace LogiTrack.Data
         public DbSet<DockSchedule> DockSchedules { get; set; }
         public DbSet<TrackingEvent> TrackingEvents { get; set; }
         public DbSet<ActivityLog> ActivityLogs { get; set; }
+        public DbSet<Payment> Payments { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+        }
     }
 }

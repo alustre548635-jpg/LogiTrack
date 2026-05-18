@@ -1,15 +1,19 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace LogiTrack.Models
 {
     [Table("Routes")]
-    public class ShipmentRoute  // ← renamed from Route to ShipmentRoute
+    public class ShipmentRoute
     {
         [Key]
         public int RouteId { get; set; }
 
-        public int ShipmentId { get; set; }
+        [Required]
+        [StringLength(30)]
+        public string RouteNumber { get; set; }
+
+        public int? DriverId { get; set; }
 
         [Required]
         [StringLength(100)]
@@ -39,7 +43,9 @@ namespace LogiTrack.Models
 
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 
-        [ForeignKey("ShipmentId")]
-        public Shipment Shipment { get; set; }
+        [ForeignKey("DriverId")]
+        public Driver? Driver { get; set; }
+
+        public ICollection<Shipment> Shipments { get; set; } = new List<Shipment>();
     }
 }

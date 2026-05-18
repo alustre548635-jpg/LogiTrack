@@ -57,6 +57,20 @@ namespace LogiTrack.Controllers
                     .ToList();
             }
 
+            var hasDashboard = assignedModules.Any(m => string.Equals(m, "Dashboard", StringComparison.OrdinalIgnoreCase));
+            if (!hasDashboard)
+            {
+                // If they don't have dashboard access, try to send them to warehouse
+                if (assignedModules.Any(m => string.Equals(m, "Warehouses", StringComparison.OrdinalIgnoreCase)))
+                    return RedirectToAction("Index", "Warehouse");
+                
+                // Fallback to shipments or tracking
+                if (assignedModules.Any(m => string.Equals(m, "Shipments", StringComparison.OrdinalIgnoreCase)))
+                    return RedirectToAction("Index", "Shipment");
+
+                return RedirectToAction("Index", "Tracking");
+            }
+
             var canViewAuditLogs =
                 assignedModules.Any(m => string.Equals(m, "Audit Logs", StringComparison.OrdinalIgnoreCase));
 

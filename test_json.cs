@@ -1,0 +1,1 @@
+using System; using System.Text.Json; class Program { static void Main() { var obj = new { CarrierId = 1, Name = " Test\ }; Console.WriteLine(JsonSerializer.Serialize(obj)); } }

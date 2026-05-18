@@ -1,215 +1,541 @@
-﻿@{
+@model LogiTrack.Models.FreightCostViewModel
+@{
     ViewData["Title"] = "Freight Cost Management";
-    ViewData["ActiveNav"] = "FreightCost";
+    ViewData["ActiveNav"] = "freightcost";
+    Layout = "~/Views/Shared/_ModuleLayout.cshtml";
 }
 
-<div x-data="{ activeTab: 'overview' }" class="space-y-5">
+<div x-data="{ 
+    activeTab: 'overview', 
+    showAddRate: false, 
+    showAddInvoice: false, 
+    showEditRate: false, 
+    editingRate: {}, 
+    showAnomalyDetail: false, 
+    selectedAnomaly: {}, 
+    showEditInvoice: false, 
+    editingInvoice: {},
+    defaultDueDate: ''
+}" 
+x-init="const d = new Date(); d.setDate(d.getDate() + 30); defaultDueDate = d.toISOString().split('T')[0]"
+class="space-y-6">
 
-    @* PAGE HEADER — RBAC: Admin/Finance only *@
+    @* PAGE HEADER *@
     <div class="flex items-center justify-between">
         <div>
-            <h1 class="font-display text-3xl font-bold text-slate-100 uppercase tracking-wide">Freight Cost</h1>
-            <p class="text-sm text-slate-500 font-mono mt-0.5">December 2024 · Financial Overview</p>
+            <h1 class="font-display text-4xl font-bold text-slate-900 uppercase tracking-wide">Freight Costs</h1>
+            <p class="text-slate-500 mt-1">Carrier rate auditing, anomaly detection, and spend analysis.</p>
         </div>
         <div class="flex items-center gap-3">
-            <select class="bg-slate-800 border border-slate-700 text-slate-300 rounded-xl px-3 py-2 text-sm outline-none font-mono">
-                <option>December 2024</option>
-                <option>November 2024</option>
-                <option>Q4 2024</option>
-            </select>
-            <button class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-sm px-4 py-2 rounded-xl transition-colors">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                Export Report
+            <a href="@Url.Action("Export", "FreightCost")" class="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2.5 rounded-xl hover:bg-slate-50 transition shadow-sm font-semibold">
+                <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                Export CSV
+            </a>
+            <button @@click="showAddInvoice = true" class="bg-slate-900 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-slate-800 transition shadow-lg shadow-slate-900/10">
+                + New Invoice
             </button>
         </div>
     </div>
 
-    @* SUMMARY BAR — AJAX: GET /Cost/Summary *@
-    <div class="grid grid-cols-4 gap-4">
-        @{
-            var costKpis = new[] {
-                new { Label="Total Freight Spend", Value="₱1,284,750", Sub="MTD", Color="text-amber-400", Trend="+8.2% vs last month", Up=true },
-                new { Label="Budget Remaining", Value="₱415,250", Sub="of ₱1.7M budget", Color="text-emerald-400", Trend="75.6% utilized", Up=false },
-                new { Label="Avg Cost / KM", Value="₱18.40", Sub="fleet average", Color="text-cyan-400", Trend="-2.1% efficiency gain", Up=true },
-                new { Label="Overbudget Shipments", Value="7", Sub="require review", Color="text-red-400", Trend="+3 vs last week", Up=false },
-                };
-        }
-        @foreach (var kpi in costKpis)
-        {
-            <div class="bg-slate-800/60 border border-slate-700/50 rounded-xl p-4 hover:border-slate-600 transition-all">
-                <p class="text-xs uppercase tracking-widest text-slate-500 font-mono mb-2">@kpi.Label</p>
-                <p class="font-mono text-2xl font-bold @kpi.Color">@kpi.Value</p>
-                <p class="text-xs text-slate-600 font-mono mt-0.5">@kpi.Sub</p>
-                <p class="text-xs @(kpi.Up ? "text-emerald-400" : "text-slate-500") font-mono mt-2">@kpi.Trend</p>
+    @* SUMMARY CARDS *@
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <p class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Total Freight Spend</p>
+            <p class="text-3xl font-bold text-slate-900">₱@Model.TotalFreightSpend.ToString("N2")</p>
+            <div class="mt-3 flex items-center gap-2 text-xs text-emerald-600 font-semibold">
+                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+                MTD Actuals
             </div>
-        }
+        </div>
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <p class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Budget Remaining</p>
+            <p class="text-3xl font-bold @(Model.BudgetRemaining < 100000 ? "text-red-600" : "text-emerald-600")">₱@Model.BudgetRemaining.ToString("N2")</p>
+            <p class="text-xs text-slate-500 mt-3 font-medium">of ₱1.7M allocated</p>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <p class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Avg Cost / KM</p>
+            <p class="text-3xl font-bold text-slate-900">₱@Model.AvgCostPerKm.ToString("N2")</p>
+            <p class="text-xs text-slate-500 mt-3 font-medium">fleet-wide average</p>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <p class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Anomalies</p>
+            <p class="text-3xl font-bold @(Model.OverbudgetCount > 0 ? "text-amber-500" : "text-slate-900")">@Model.OverbudgetCount</p>
+            <p class="text-xs text-slate-500 mt-3 font-medium">pending financial review</p>
+        </div>
     </div>
 
-    @* TABS *@
-    <div class="flex items-center gap-1 bg-slate-800/60 border border-slate-700/50 rounded-xl p-1 w-fit">
-        @foreach (var tab in new[] { ("overview", "Overview"), ("rates", "Rate Cards"), ("anomalies", "Anomalies"), ("invoices", "Invoices") })
+    @* TABS NAVIGATION *@
+    <div class="flex items-center gap-2 border-b border-slate-200 pb-px">
+        @foreach (var tab in new[] { ("overview", "Spend Analysis"), ("rates", "Rate Cards"), ("anomalies", "Anomalies"), ("invoices", "Carrier Invoices") })
         {
             <button @@click="activeTab = '@tab.Item1'"
-                    :class="activeTab === '@tab.Item1' ? 'bg-amber-500 text-slate-900 font-semibold shadow' : 'text-slate-400 hover:text-slate-200'"
-                    class="px-4 py-2 rounded-lg text-sm transition-all font-mono">
+                    :class="activeTab === '@tab.Item1' ? 'border-sky-600 text-sky-600' : 'border-transparent text-slate-500 hover:text-slate-700'"
+                    class="px-4 py-3 text-sm font-bold border-b-2 transition-all">
                 @tab.Item2
             </button>
         }
     </div>
 
     @* OVERVIEW TAB *@
-    <div x-show="activeTab === 'overview'" class="space-y-4">
-        @* Chart placeholder — AJAX: GET /Cost/ChartData *@
-        <div class="bg-slate-800/60 border border-slate-700/50 rounded-xl p-5">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-sm font-semibold text-slate-200">Cost by Carrier — December 2024</h2>
-                <select class="bg-slate-800 border border-slate-700 text-slate-400 rounded-lg px-2 py-1 text-xs outline-none font-mono">
-                    <option>By Carrier</option>
-                    <option>By Route</option>
-                    <option>By Week</option>
-                </select>
+    <div x-show="activeTab === 'overview'" class="space-y-6">
+        <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900">Spend by Carrier</h2>
+                    <p class="text-sm text-slate-500">Distribution of freight costs for current period.</p>
+                </div>
             </div>
-            @* PLACEHOLDER: Chart — bind Chart.js or ApexCharts here *@
-            <div id="costChart" class="h-48 flex items-center justify-center bg-slate-900/40 rounded-xl border border-slate-700/30">
-                @* Simulated bar chart using CSS *@
-                <div class="flex items-end gap-4 h-32 px-8">
-                    @{
-                        var bars = new[] {
-                                        new { Label="LBC", Height="85%", Val="₱482K", Color="bg-amber-500" },
-                                        new { Label="J&T", Height="62%", Val="₱354K", Color="bg-cyan-500" },
-                                        new { Label="Ninja", Height="45%", Val="₱258K", Color="bg-emerald-500" },
-                                        new { Label="2GO", Height="33%", Val="₱189K", Color="bg-slate-500" },
-                                        };
-                    }
-                    @foreach (var b in bars)
-                    {
-                        <div class="flex flex-col items-center gap-2">
-                            <span class="text-xs font-mono text-slate-400">@b.Val</span>
-                            <div class="w-12 @b.Color rounded-t-lg opacity-80 hover:opacity-100 transition-opacity" style="height: @b.Height"></div>
-                            <span class="text-xs font-mono text-slate-500">@b.Label</span>
+            <div class="flex items-end gap-6 h-64 px-10">
+                @foreach (var invGroup in Model.Invoices.GroupBy(i => i.Carrier.Name).Select(g => new { Name = g.Key, Total = g.Sum(x => x.Amount) }).OrderByDescending(x => x.Total))
+                {
+                    var maxTotal = Model.Invoices.GroupBy(i => i.Carrier.Name).Max(g => g.Sum(x => x.Amount));
+                    var height = (int)(invGroup.Total / maxTotal * 100);
+                    <div class="flex-1 flex flex-col items-center gap-3">
+                        <span class="text-xs font-bold text-slate-700">₱@invGroup.Total.ToString("N0")</span>
+                        <div class="w-full max-w-[60px] gradient-accent rounded-t-xl transition-all hover:brightness-110" style="height: @height%"></div>
+                        <span class="text-xs font-semibold text-slate-500 text-center line-clamp-1">@invGroup.Name</span>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    @* RATE CARDS TAB *@
+    <div x-show="activeTab === 'rates'" class="space-y-4">
+        <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+            <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                <h2 class="text-sm font-bold text-slate-800 uppercase tracking-tight">Standard Carrier Rate Cards</h2>
+                <button @@click="showAddRate = true" class="text-xs bg-sky-600 text-white font-bold px-4 py-2 rounded-xl hover:bg-sky-500 transition shadow-sm">+ Add New Rate</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200">
+                            <th class="px-6 py-3 text-left text-xs font-bold uppercase tracking-widest text-slate-500">Carrier</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold uppercase tracking-widest text-slate-500">Zone</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold uppercase tracking-widest text-slate-500">Weight Bracket</th>
+                            <th class="px-6 py-3 text-right text-xs font-bold uppercase tracking-widest text-slate-500">Base Rate</th>
+                            <th class="px-6 py-3 text-right text-xs font-bold uppercase tracking-widest text-slate-500">Fuel</th>
+                            <th class="px-6 py-3 text-right text-xs font-bold uppercase tracking-widest text-slate-500">Handling</th>
+                            <th class="px-6 py-3 text-right text-xs font-bold uppercase tracking-widest text-slate-500">Total/kg</th>
+                            <th class="px-6 py-3 text-right"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        @foreach (var r in Model.RateCards)
+                        {
+                            var total = r.BaseRatePerKg * (1 + r.FuelSurchargePercent / 100) + (r.HandlingFee / 1); // Simplified
+                            <tr class="hover:bg-slate-50 transition-colors group">
+                                <td class="px-6 py-4 font-bold text-slate-900">@r.Carrier?.Name</td>
+                                <td class="px-6 py-4 text-slate-600">@r.Zone</td>
+                                <td class="px-6 py-4 text-slate-600">@r.WeightBracket</td>
+                                <td class="px-6 py-4 text-right text-slate-700 font-semibold">₱@r.BaseRatePerKg.ToString("N2")</td>
+                                <td class="px-6 py-4 text-right text-amber-600 font-bold">@r.FuelSurchargePercent.ToString("N0")%</td>
+                                <td class="px-6 py-4 text-right text-slate-700">₱@r.HandlingFee.ToString("N2")</td>
+                                <td class="px-6 py-4 text-right text-sky-600 font-bold text-base">₱@total.ToString("N2")</td>
+                                <td class="px-6 py-4 text-right">
+                                    <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button @@click="editingRate = { id: @r.RateCardId, carrier: '@r.Carrier?.Name', zone: '@r.Zone', bracket: '@r.WeightBracket', base: @r.BaseRatePerKg, fuel: @r.FuelSurchargePercent, handling: @r.HandlingFee }; showEditRate = true" class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
+                                        <button onclick="deactivateRate(@r.RateCardId)" class="p-1.5 hover:bg-red-50 rounded-lg text-red-500"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                        @if (Model.RateCards.Count == 0)
+                        {
+                            <tr><td colspan="8" class="px-6 py-10 text-center text-slate-500">No active rate cards found. Click "+ Add New Rate" to begin.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    @* ANOMALIES TAB *@
+    <div x-show="activeTab === 'anomalies'" class="space-y-4">
+        <div class="grid grid-cols-1 gap-3">
+            @foreach (var a in Model.Anomalies)
+            {
+                <div class="bg-white border border-red-100 rounded-2xl p-5 flex items-center justify-between hover:border-red-300 transition-colors shadow-sm">
+                    <div class="flex items-center gap-5">
+                        <div class="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center">
+                            <svg class="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                         </div>
-                    }
+                        <div>
+                            <p class="font-bold text-slate-900">@a.ShipmentCode</p>
+                            <p class="text-sm text-slate-500">Carrier: @a.CarrierName</p>
+                        </div>
+                        <div class="hidden md:flex items-center gap-8 ml-10">
+                            <div><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Estimated</p><p class="text-sm font-semibold text-slate-700">₱@a.EstimatedCost.ToString("N2")</p></div>
+                            <div><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Actual</p><p class="text-sm font-bold text-slate-900">₱@a.ActualCost.ToString("N2")</p></div>
+                            <div><p class="text-[10px] font-bold text-red-400 uppercase tracking-widest">Variance</p><p class="text-sm font-black text-red-600">@a.VariancePercent.ToString("N1")%</p></div>
+                        </div>
+                    </div>
+                    <button @@click="selectedAnomaly = { code: '@a.ShipmentCode', carrier: '@a.CarrierName', est: '@a.EstimatedCost.ToString("N2")', act: '@a.ActualCost.ToString("N2")', var: '@a.Variance.ToString("N2")', pct: '@a.VariancePercent.ToString("N1")%' }; showAnomalyDetail = true" 
+                            class="bg-slate-100 text-slate-700 px-5 py-2.5 rounded-xl font-bold hover:bg-slate-200 transition">
+                        Review Details
+                    </button>
+                </div>
+            }
+        </div>
+    </div>
+
+    @* CARRIER INVOICES TAB *@
+    <div x-show="activeTab === 'invoices'" class="space-y-4">
+        <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+            <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                <h2 class="text-sm font-bold text-slate-800 uppercase tracking-tight">Carrier Invoices Log</h2>
+                <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Filter:</span>
+                    <select class="text-xs bg-transparent border-none font-bold text-slate-600 outline-none">
+                        <option>All Status</option>
+                        <option>Pending</option>
+                        <option>Paid</option>
+                        <option>Overdue</option>
+                    </select>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200">
+                            <th class="px-6 py-3 text-left text-xs font-bold uppercase tracking-widest text-slate-500">Invoice ID</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold uppercase tracking-widest text-slate-500">Carrier</th>
+                            <th class="px-6 py-3 text-right text-xs font-bold uppercase tracking-widest text-slate-500">Amount</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold uppercase tracking-widest text-slate-500">Issue Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold uppercase tracking-widest text-slate-500">Due Date</th>
+                            <th class="px-6 py-3 text-center text-xs font-bold uppercase tracking-widest text-slate-500">Status</th>
+                            <th class="px-6 py-3 text-right"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        @foreach (var inv in Model.Invoices)
+                        {
+                            <tr class="hover:bg-slate-50 transition-colors group">
+                                <td class="px-6 py-4 font-bold text-sky-600">@inv.InvoiceCode</td>
+                                <td class="px-6 py-4 text-slate-900 font-semibold">@inv.Carrier?.Name</td>
+                                <td class="px-6 py-4 text-right font-black text-slate-900">₱@inv.Amount.ToString("N2")</td>
+                                <td class="px-6 py-4 text-slate-500 text-xs">@inv.IssueDate.ToString("MMM dd, yyyy")</td>
+                                <td class="px-6 py-4 text-slate-500 text-xs">@inv.DueDate.ToString("MMM dd, yyyy")</td>
+                                <td class="px-6 py-4 text-center">
+                                    <span class="text-[9px] font-black uppercase px-2.5 py-1 rounded-md 
+                                        @(inv.Status == "Paid" ? "bg-emerald-100 text-emerald-700" : 
+                                          inv.Status == "Overdue" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700")">
+                                        @inv.Status
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-right">
+                                    <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        @if (inv.Status != "Paid")
+                                        {
+                                            <button onclick="updateInvoiceStatus(@inv.InvoiceId, 'Paid')" class="text-[10px] font-bold bg-emerald-600 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-500 transition shadow-sm">Mark Paid</button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                        @if (Model.Invoices.Count == 0)
+                        {
+                            <tr><td colspan="7" class="px-6 py-10 text-center text-slate-500">No invoices recorded. Click "+ New Invoice" to begin.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    @* ANOMALY DETAIL MODAL *@
+    <div x-show="showAnomalyDetail" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4" style="display:none;">
+        <div @@click.away="showAnomalyDetail = false" class="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-[fadeScaleIn_0.2s_ease-out]">
+            <div class="px-8 py-6 border-b border-red-50 bg-red-50/30 flex items-center justify-between">
+                <div>
+                    <h3 class="text-2xl font-display font-bold text-red-600 uppercase tracking-tight">Audit Review</h3>
+                    <p class="text-xs text-slate-500" x-text="'Shipment: ' + selectedAnomaly.code"></p>
+                </div>
+                <button @@click="showAnomalyDetail = false" class="text-slate-400 hover:text-slate-600 text-3xl leading-none">&times;</button>
+            </div>
+            <div class="p-8 space-y-6">
+                <div class="grid grid-cols-2 gap-6">
+                    <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Estimated Cost</p>
+                        <p class="text-xl font-bold text-slate-700" x-text="'₱' + selectedAnomaly.est"></p>
+                    </div>
+                    <div class="p-4 bg-red-50 rounded-2xl border border-red-100">
+                        <p class="text-[10px] font-bold text-red-400 uppercase tracking-widest mb-1">Actual Invoiced</p>
+                        <p class="text-xl font-bold text-red-600" x-text="'₱' + selectedAnomaly.act"></p>
+                    </div>
+                </div>
+
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                        <span class="text-sm text-slate-500 font-medium">Variance Amount</span>
+                        <span class="text-sm font-bold text-red-600" x-text="'+₱' + selectedAnomaly.var"></span>
+                    </div>
+                    <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                        <span class="text-sm text-slate-500 font-medium">Variance Percentage</span>
+                        <span class="text-sm font-bold text-red-600" x-text="selectedAnomaly.pct"></span>
+                    </div>
+                    <div class="flex items-center justify-between py-2">
+                        <span class="text-sm text-slate-500 font-medium">Carrier Responsible</span>
+                        <span class="text-sm font-bold text-slate-900" x-text="selectedAnomaly.carrier"></span>
+                    </div>
+                </div>
+
+                <div class="p-4 bg-amber-50 rounded-xl border border-amber-100 text-xs text-amber-800 leading-relaxed">
+                    <p class="font-bold mb-1 uppercase tracking-wide">Audit Note:</p>
+                    This shipment has been flagged due to a significant price discrepancy. Possible causes: Fuel surcharge spike, incorrect weight measurement, or unauthorized handling fees.
+                </div>
+
+                <div class="flex gap-3">
+                    <button @@click="showAnomalyDetail = false" class="flex-1 px-6 py-3.5 bg-slate-900 text-white font-bold rounded-2xl shadow-lg hover:bg-slate-800 transition">Acknowledge</button>
+                    <button @@click="showAnomalyDetail = false; activeTab = 'invoices'; window.showToast('Redirecting to Carrier Invoices...', 'info')" class="flex-1 px-6 py-3.5 bg-white border border-slate-200 text-slate-700 font-bold rounded-2xl hover:bg-slate-50 transition">View Invoices</button>
                 </div>
             </div>
         </div>
     </div>
 
-    @* RATE CARDS TAB — RBAC: Admin/Finance only — AJAX: GET /Cost/RateCards *@
-    <div x-show="activeTab === 'rates'">
-        <div class="bg-slate-800/60 border border-slate-700/50 rounded-xl overflow-hidden">
-            <div class="px-5 py-3 border-b border-slate-700/50 flex items-center justify-between">
-                <h2 class="text-sm font-semibold text-slate-200">Carrier Rate Cards</h2>
-                <button class="text-xs bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold px-3 py-1.5 rounded-lg transition-colors">+ Add Rate</button>
-            </div>
-            <table class="w-full">
-                <thead>
-                    <tr class="bg-slate-800/80 border-b border-slate-700/50">
-                        @foreach (var h in new[] { "Carrier", "Zone", "Weight Bracket", "Base Rate", "Fuel Surcharge", "Handling Fee", "Total/kg", "Actions" })
-                        {
-                            <th class="px-4 py-3 text-left text-xs uppercase tracking-widest text-slate-500 font-mono">@h</th>
-                        }
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-700/30">
-                    @{
-                        var rates = new[] {
-                                        new { Carrier="LBC Express", Zone="NCR→Visayas", Weight="0–50kg", Base="₱85/kg", Fuel="12%", Handling="₱150", Total="₱95.20/kg" },
-                                        new { Carrier="LBC Express", Zone="NCR→Mindanao", Weight="0–50kg", Base="₱95/kg", Fuel="12%", Handling="₱150", Total="₱106.40/kg" },
-                                        new { Carrier="J&T Express", Zone="NCR→Luzon", Weight="0–100kg", Base="₱62/kg", Fuel="10%", Handling="₱80", Total="₱68.20/kg" },
-                                        new { Carrier="Ninja Van", Zone="NCR→NCR", Weight="0–30kg", Base="₱45/kg", Fuel="8%", Handling="₱50", Total="₱48.60/kg" },
-                                        };
-                    }
-                    @foreach (var r in rates)
-                    {
-                        <tr class="hover:bg-slate-700/20 transition-colors group">
-                            <td class="px-4 py-3 text-sm text-slate-300 font-semibold">@r.Carrier</td>
-                            <td class="px-4 py-3 text-sm text-slate-400 font-mono">@r.Zone</td>
-                            <td class="px-4 py-3 text-sm text-slate-400 font-mono">@r.Weight</td>
-                            <td class="px-4 py-3 text-sm text-slate-300 font-mono">@r.Base</td>
-                            <td class="px-4 py-3 text-sm text-amber-400 font-mono">@r.Fuel</td>
-                            <td class="px-4 py-3 text-sm text-slate-400 font-mono">@r.Handling</td>
-                            <td class="px-4 py-3 text-sm text-cyan-400 font-mono font-bold">@r.Total</td>
-                            <td class="px-4 py-3">
-                                <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    @* AJAX: PUT /Cost/UpdateRate *@
-                                    <button class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 px-2.5 py-1 rounded-lg font-mono">Edit</button>
-                                </div>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    </div>
 
-    @* ANOMALIES TAB — AJAX: GET /Cost/Anomalies *@
-    <div x-show="activeTab === 'anomalies'" class="space-y-3">
-        <p class="text-xs text-slate-500 font-mono">Shipments where actual cost exceeded estimate by more than 15%</p>
-        @{
-            var anomalies = new[] {
-                new { Id="SHP-2024-0071", Carrier="LBC Express", Estimated="₱12,400", Actual="₱16,850", Variance="+₱4,450", Pct="+35.9%" },
-                new { Id="SHP-2024-0064", Carrier="2GO", Estimated="₱8,200", Actual="₱9,880", Variance="+₱1,680", Pct="+20.5%" },
-                new { Id="SHP-2024-0058", Carrier="J&T Express", Estimated="₱5,600", Actual="₱6,550", Variance="+₱950", Pct="+16.9%" },
-                };
-        }
-        @foreach (var a in anomalies)
-        {
-            <div class="bg-slate-800/60 border border-red-500/20 rounded-xl p-4 flex items-center justify-between hover:border-red-500/40 transition-colors">
-                <div class="flex items-center gap-4">
-                    <div class="w-8 h-8 bg-red-500/15 rounded-lg flex items-center justify-center shrink-0">
-                        <svg class="w-4 h-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+
+    @* ADD RATE MODAL *@
+    <div x-show="showAddRate" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4" style="display:none;">
+        <div @@click.away="showAddRate = false" class="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-[fadeScaleIn_0.2s_ease-out]">
+            <div class="px-8 py-6 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="text-2xl font-display font-bold text-slate-900 uppercase tracking-tight">Add New Rate Card</h3>
+                <button @@click="showAddRate = false" class="text-slate-400 hover:text-slate-600 text-3xl leading-none">&times;</button>
+            </div>
+            <form onsubmit="addRate(event)" class="p-8 space-y-5">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="col-span-2">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Carrier</label>
+                        <select name="carrierId" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-sky-500/20">
+                            @foreach (var c in Model.Carriers) { <option value="@c.CarrierId">@c.Name</option> }
+                        </select>
                     </div>
                     <div>
-                        <span class="text-sm font-mono text-amber-400">@a.Id</span>
-                        <span class="text-slate-600 mx-2">·</span>
-                        <span class="text-sm text-slate-400">@a.Carrier</span>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Route / Zone</label>
+                        <input type="text" name="zone" placeholder="e.g. NCR to Cebu" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-sky-500/20" />
                     </div>
-                    <div class="flex items-center gap-6">
-                        <div><p class="text-xs text-slate-500 font-mono">Estimated</p><p class="text-sm font-mono text-slate-300">@a.Estimated</p></div>
-                        <div><p class="text-xs text-slate-500 font-mono">Actual</p><p class="text-sm font-mono text-slate-300">@a.Actual</p></div>
-                        <div><p class="text-xs text-slate-500 font-mono">Variance</p><p class="text-sm font-mono font-bold text-red-400">@a.Variance (@a.Pct)</p></div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Weight Bracket</label>
+                        <input type="text" name="weightBracket" placeholder="e.g. 0-50kg" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-sky-500/20" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Base Rate (₱/kg)</label>
+                        <input type="number" name="baseRate" step="0.01" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-sky-500/20" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Fuel Surcharge (%)</label>
+                        <input type="number" name="fuel" step="0.1" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-sky-500/20" />
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Handling Fee (Fixed)</label>
+                        <input type="number" name="handling" step="0.01" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-sky-500/20" />
                     </div>
                 </div>
-                <button class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-2 rounded-lg font-mono transition-colors">Review</button>
-            </div>
-        }
-    </div>
-
-    @* INVOICES TAB — AJAX: GET /Cost/Invoices *@
-    <div x-show="activeTab === 'invoices'">
-        <div class="bg-slate-800/60 border border-slate-700/50 rounded-xl overflow-hidden">
-            <table class="w-full">
-                <thead>
-                    <tr class="bg-slate-800/80 border-b border-slate-700/50">
-                        @foreach (var h in new[] { "Invoice #", "Carrier", "Amount", "Issue Date", "Due Date", "Status" })
-                        {
-                            <th class="px-4 py-3 text-left text-xs uppercase tracking-widest text-slate-500 font-mono">@h</th>
-                        }
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-700/30">
-                    @{
-                        var invoices = new[] {
-                                        new { Inv="INV-2024-0341", Carrier="LBC Express", Amount="₱284,500", Issued="2024-12-01", Due="2024-12-31", Status="Pending", StatusColor="text-amber-400 bg-amber-500/10" },
-                                        new { Inv="INV-2024-0330", Carrier="J&T Express", Amount="₱142,800", Issued="2024-11-15", Due="2024-12-15", Status="Paid", StatusColor="text-emerald-400 bg-emerald-500/10" },
-                                        new { Inv="INV-2024-0318", Carrier="2GO", Amount="₱98,400", Issued="2024-11-01", Due="2024-12-01", Status="Overdue", StatusColor="text-red-400 bg-red-500/10" },
-                                        };
-                    }
-                    @foreach (var inv in invoices)
-                    {
-                        <tr class="hover:bg-slate-700/20 transition-colors">
-                            <td class="px-4 py-3 text-sm font-mono text-amber-400">@inv.Inv</td>
-                            <td class="px-4 py-3 text-sm text-slate-300">@inv.Carrier</td>
-                            <td class="px-4 py-3 text-sm font-mono text-slate-200 font-bold">@inv.Amount</td>
-                            <td class="px-4 py-3 text-sm font-mono text-slate-500">@inv.Issued</td>
-                            <td class="px-4 py-3 text-sm font-mono text-slate-400">@inv.Due</td>
-                            <td class="px-4 py-3">
-                                <span class="text-xs font-mono font-semibold px-2.5 py-1 rounded-full @inv.StatusColor">@inv.Status</span>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+                <div class="pt-4 flex gap-3">
+                    <button type="button" @@click="showAddRate = false" class="flex-1 px-6 py-3.5 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition">Cancel</button>
+                    <button type="submit" class="flex-1 px-6 py-3.5 bg-sky-600 text-white font-bold rounded-2xl shadow-lg shadow-sky-600/20 hover:bg-sky-500 transition">Save Rate Card</button>
+                </div>
+            </form>
         </div>
     </div>
+
+    @* EDIT RATE MODAL *@
+    <div x-show="showEditRate" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4" style="display:none;">
+        <div @@click.away="showEditRate = false" class="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-[fadeScaleIn_0.2s_ease-out]">
+            <div class="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <div>
+                    <h3 class="text-2xl font-display font-bold text-slate-900 uppercase tracking-tight">Edit Rate Card</h3>
+                    <p class="text-xs text-slate-500" x-text="'Carrier: ' + editingRate.carrier"></p>
+                </div>
+                <button @@click="showEditRate = false" class="text-slate-400 hover:text-slate-600 text-3xl leading-none">&times;</button>
+            </div>
+            <form onsubmit="updateRate(event)" class="p-8 space-y-5">
+                <input type="hidden" name="rateCardId" :value="editingRate.id" />
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Route / Zone</label>
+                        <input type="text" name="zone" :value="editingRate.zone" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-sky-500/20" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Weight Bracket</label>
+                        <input type="text" name="weightBracket" :value="editingRate.bracket" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-sky-500/20" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Base Rate (₱/kg)</label>
+                        <input type="number" name="baseRate" step="0.01" :value="editingRate.base" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-sky-500/20" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Fuel Surcharge (%)</label>
+                        <input type="number" name="fuel" step="0.1" :value="editingRate.fuel" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-sky-500/20" />
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Handling Fee (Fixed)</label>
+                        <input type="number" name="handling" step="0.01" :value="editingRate.handling" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-sky-500/20" />
+                    </div>
+                </div>
+                <div class="pt-4 flex gap-3">
+                    <button type="button" @@click="showEditRate = false" class="flex-1 px-6 py-3.5 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition">Cancel</button>
+                    <button type="submit" class="flex-1 px-6 py-3.5 bg-slate-900 text-white font-bold rounded-2xl shadow-lg hover:bg-slate-800 transition">Update Rate</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    @* ADD INVOICE MODAL *@
+    <div x-show="showAddInvoice" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4" style="display:none;">
+        <div @@click.away="showAddInvoice = false" class="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-[fadeScaleIn_0.2s_ease-out]">
+            <div class="px-8 py-6 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="text-2xl font-display font-bold text-slate-900 uppercase tracking-tight">Record Carrier Invoice</h3>
+                <button @@click="showAddInvoice = false" class="text-slate-400 hover:text-slate-600 text-3xl leading-none">&times;</button>
+            </div>
+            <form onsubmit="addInvoice(event)" class="p-8 space-y-5">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Invoice Code</label>
+                    <input type="text" name="invoiceCode" placeholder="e.g. INV-2024-XXX" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-sky-500/20" />
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Carrier</label>
+                    <select name="carrierId" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-sky-500/20">
+                        @foreach (var c in Model.Carriers) { <option value="@c.CarrierId">@c.Name</option> }
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Amount (₱)</label>
+                        <input type="number" name="amount" step="0.01" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-sky-500/20" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Due Date</label>
+                        <input type="date" name="dueDate" :value="defaultDueDate" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-sky-500/20" />
+                    </div>
+                </div>
+                <div class="pt-4 flex gap-3">
+                    <button type="button" @@click="showAddInvoice = false" class="flex-1 px-6 py-3.5 bg-slate-100 text-slate-700 font-bold rounded-2xl hover:bg-slate-200 transition">Cancel</button>
+                    <button type="submit" class="flex-1 px-6 py-3.5 bg-sky-600 text-white font-bold rounded-2xl shadow-lg shadow-sky-600/20 hover:bg-sky-500 transition">Record Invoice</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    @* EDIT INVOICE MODAL (same as before) *@
+    
+
+
 </div>
+
+<script>
+    async function addRate(e) {
+        e.preventDefault();
+        const f = new FormData(e.target);
+        const res = await fetch('/FreightCost/AddRate', { method: 'POST', body: f });
+        const d = await res.json();
+        if (d.success) {
+            window.showToast(d.message);
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            window.showToast(d.message, 'error');
+        }
+    }
+
+    async function updateRate(e) {
+        e.preventDefault();
+        const f = new FormData(e.target);
+        const res = await fetch('/FreightCost/UpdateRate', { method: 'POST', body: f });
+        const d = await res.json();
+        if (d.success) {
+            window.showToast(d.message);
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            window.showToast(d.message, 'error');
+        }
+    }
+
+    async function deactivateRate(id) {
+        const confirmed = await window.showConfirm('Deactivate Rate', 'Are you sure you want to remove this rate card?');
+        if (!confirmed) return;
+        const f = new FormData();
+        f.append('rateCardId', id);
+        const res = await fetch('/FreightCost/DeactivateRate', { method: 'POST', body: f });
+        const d = await res.json();
+        if (d.success) {
+            window.showToast(d.message);
+            setTimeout(() => location.reload(), 1000);
+        }
+    }
+
+    async function addInvoice(e) {
+        e.preventDefault();
+        const f = new FormData(e.target);
+        const res = await fetch('/FreightCost/AddInvoice', { method: 'POST', body: f });
+        const d = await res.json();
+        if (d.success) {
+            window.showToast(d.message);
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            window.showToast(d.message, 'error');
+        }
+    }
+
+    async function updateInvoice(e) {
+        e.preventDefault();
+        const f = new FormData(e.target);
+        const res = await fetch('/FreightCost/UpdateInvoice', { method: 'POST', body: f });
+        const d = await res.json();
+        if (d.success) {
+            window.showToast(d.message);
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            window.showToast(d.message, 'error');
+        }
+    }
+
+    async function updateInvoiceStatus(id, status) {
+        const confirmed = await window.showConfirm('Invoice Update', `Mark this invoice as ${status.toUpperCase()}?`);
+        if (!confirmed) return;
+        const f = new FormData();
+        f.append('invoiceId', id);
+        f.append('status', status);
+        const res = await fetch('/FreightCost/UpdateInvoiceStatus', { method: 'POST', body: f });
+        const d = await res.json();
+        if (d.success) {
+            window.showToast(d.message);
+            setTimeout(() => location.reload(), 1000);
+        }
+    }
+
+
+
+    function openPaymentModal(id, code, amount) {
+        document.getElementById('modalPaymentId').value = id;
+        document.getElementById('modalShipmentCode').textContent = code;
+        document.getElementById('modalAmount').textContent = '₱' + amount.toLocaleString();
+        document.getElementById('payment-modal').style.display = 'flex';
+    }
+
+    function closePaymentModal() {
+        document.getElementById('payment-modal').style.display = 'none';
+    }
+
+    async function submitPayment(e) {
+        e.preventDefault();
+        const f = new FormData(e.target);
+        const res = await fetch('/FreightCost/MarkAsPaid', { method: 'POST', body: f });
+        const d = await res.json();
+        if (d.success) {
+            window.showToast(d.message);
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            window.showToast(d.message, 'error');
+        }
+    }
+</script>
+
+<style>
+    @@keyframes fadeScaleIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+    }
+</style>
+
+

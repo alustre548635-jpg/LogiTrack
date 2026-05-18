@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace LogiTrack.Models
@@ -12,6 +12,8 @@ namespace LogiTrack.Models
         [Required]
         [StringLength(100)]
         public string FullName { get; set; }
+
+        public int? UserId { get; set; }
 
         public int WarehouseId { get; set; }
 
@@ -28,5 +30,8 @@ namespace LogiTrack.Models
 
         [ForeignKey("WarehouseId")]
         public Warehouse Warehouse { get; set; }
+
+        [ForeignKey("UserId")]
+        public User? User { get; set; }
     }
 }

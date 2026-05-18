@@ -3,12 +3,13 @@
     ViewData["Title"] = "Reports";
     ViewData["ActiveNav"] = "reports";
     Layout = "_ModuleLayout";
+    var phCulture = new System.Globalization.CultureInfo("en-PH");
 }
 
 <div class="space-y-6">
     <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-            <h1 class="font-display text-4xl font-bold text-slate-900">Reports</h1>
+            <h1 class="font-display text-4xl font-bold text-slate-900 uppercase tracking-wide">Reports</h1>
             <p class="text-slate-600">Operational KPIs, trendlines, and recent activity.</p>
         </div>
 
@@ -26,6 +27,10 @@
             <button type="submit"
                     class="h-10 px-4 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition">
                 Apply
+            </button>
+            <button type="submit" formaction="@Url.Action("ExportPdf", "Reports")" class="h-10 px-4 rounded-xl border border-slate-300 bg-white text-slate-700 text-sm font-semibold hover:bg-slate-50 transition flex items-center gap-2">
+                <svg class="w-4 h-4 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                Export PDF
             </button>
         </form>
     </div>
@@ -45,7 +50,7 @@
             <p class="text-xs text-slate-500 uppercase tracking-wider">Invoices</p>
             <p class="text-3xl font-bold mt-2">@Model.TotalInvoices</p>
             <p class="text-xs text-slate-500 mt-2">Total amount</p>
-            <p class="text-lg font-semibold">@Model.TotalInvoicedAmount.ToString("N2")</p>
+            <p class="text-lg font-semibold">@Model.TotalInvoicedAmount.ToString("C2", phCulture)</p>
         </div>
 
         <div class="rounded-2xl bg-white border border-slate-200 p-5">
@@ -61,6 +66,21 @@
         <div class="rounded-2xl bg-white border border-slate-200 p-5">
             <p class="text-xs text-slate-500 uppercase tracking-wider">Tracking events</p>
             <p class="text-3xl font-bold mt-2">@Model.TotalTrackingEvents</p>
+        </div>
+
+        <div class="rounded-2xl bg-white border border-slate-200 p-5 border-l-4 border-l-emerald-500">
+            <p class="text-xs text-slate-500 uppercase tracking-wider">Total Revenue</p>
+            <p class="text-3xl font-bold mt-2 text-emerald-600">@Model.TotalRevenue.ToString("C2", phCulture)</p>
+        </div>
+
+        <div class="rounded-2xl bg-white border border-slate-200 p-5 border-l-4 border-l-rose-500">
+            <p class="text-xs text-slate-500 uppercase tracking-wider">Operational Cost</p>
+            <p class="text-3xl font-bold mt-2 text-rose-600">@Model.TotalOperationalCost.ToString("C2", phCulture)</p>
+        </div>
+
+        <div class="rounded-2xl bg-white border border-slate-200 p-5 border-l-4 border-l-sky-500">
+            <p class="text-xs text-slate-500 uppercase tracking-wider">Net Profit</p>
+            <p class="text-3xl font-bold mt-2 @(Model.NetProfit >= 0 ? "text-sky-600" : "text-rose-600")">@Model.NetProfit.ToString("C2", phCulture)</p>
         </div>
     </div>
 
@@ -89,7 +109,7 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div class="rounded-2xl bg-white border border-slate-200 overflow-hidden xl:col-span-1">
             <div class="px-6 py-4 border-b border-slate-200">
                 <h2 class="font-display text-2xl font-bold">Recent shipments</h2>
@@ -104,9 +124,10 @@
                     @foreach (var s in Model.RecentShipments)
                     {
                         <div class="px-6 py-4 flex items-center justify-between gap-4">
-                            <div class="min-w-0">
+                            <div class="min-w-0 flex-1">
                                 <p class="font-semibold text-slate-900 font-mono truncate">@s.ShipmentCode</p>
                                 <p class="text-xs text-slate-500 truncate">@s.Origin → @s.Destination</p>
+                                <p class="text-[10px] text-sky-600 font-bold uppercase mt-1">@(s.Carrier?.Name ?? "No Carrier Assigned")</p>
                             </div>
                             <span class="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-700 whitespace-nowrap">@s.Status</span>
                         </div>
@@ -134,33 +155,11 @@
                                 <p class="text-xs text-slate-500 truncate">@i.Carrier?.Name · @i.IssueDate.ToString("MMM dd")</p>
                             </div>
                             <div class="text-right">
-                                <p class="text-sm font-semibold text-slate-900">@i.Amount.ToString("N2")</p>
+                                <p class="text-sm font-semibold text-slate-900">@i.Amount.ToString("C2", phCulture)</p>
                                 <span class="text-xs px-2 py-1 rounded-full @(i.Status == "Paid" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200")">
                                     @i.Status
                                 </span>
                             </div>
-                        </div>
-                    }
-                }
-            </div>
-        </div>
-
-        <div class="rounded-2xl bg-white border border-slate-200 overflow-hidden xl:col-span-1">
-            <div class="px-6 py-4 border-b border-slate-200">
-                <h2 class="font-display text-2xl font-bold">Recent activity</h2>
-            </div>
-            <div class="divide-y divide-slate-100">
-                @if (Model.RecentActivities.Count == 0)
-                {
-                    <p class="px-6 py-6 text-slate-500">No activity in this range.</p>
-                }
-                else
-                {
-                    @foreach (var a in Model.RecentActivities)
-                    {
-                        <div class="px-6 py-4">
-                            <p class="text-sm text-slate-900">@a.Action</p>
-                            <p class="text-xs text-slate-500 mt-1">@(a.User?.FullName ?? "Unknown") · @a.Timestamp.ToString("MMM dd, hh:mm tt")</p>
                         </div>
                     }
                 }
@@ -224,4 +223,6 @@
         });
     </script>
 }
+
+
 

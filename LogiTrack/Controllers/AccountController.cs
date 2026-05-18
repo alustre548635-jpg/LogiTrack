@@ -1,116 +1,41 @@
 using LogiTrack.Data;
 using LogiTrack.Models;
+using LogiTrack.Services;
 using Microsoft.Data.SqlClient;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BCrypt.Net;
+
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
 
 namespace LogiTrack.Controllers
 {
     public class AccountController : Controller
     {
         private readonly LogiTrackDbContext _db;
+        private readonly IAuditLogService _auditLogService;
+        private readonly IEmailService _emailService;
 
-        public AccountController(LogiTrackDbContext db)
+        public AccountController(LogiTrackDbContext db, IAuditLogService auditLogService, IEmailService emailService)
         {
             _db = db;
+            _auditLogService = auditLogService;
+            _emailService = emailService;
         }
 
         // GET: /Account/Register
         [HttpGet]
-        public IActionResult Register(string? plan = null, string? returnUrl = null)
+        public IActionResult Register()
         {
-            if (HttpContext.Session.GetString("UserId") != null)
-                return RedirectLoggedInUser();
-
-            ViewBag.SelectedPlan = NormalizePlan(plan);
-            ViewBag.ReturnUrl = returnUrl;
-            return View();
+            return RedirectToAction("Login");
         }
 
-        // POST: /Account/Register
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Register(string FullName, string Email, string Password, string ConfirmPassword, bool AgreeTerms, string? SelectedPlan = null, string? ReturnUrl = null)
+        public IActionResult Register(string FullName, string Email, string Password, string ConfirmPassword, bool AgreeTerms)
         {
-            try
-            {
-                var selectedPlan = NormalizePlan(SelectedPlan);
-                ViewBag.SelectedPlan = selectedPlan;
-                ViewBag.ReturnUrl = ReturnUrl;
-
-                // Validation
-                if (string.IsNullOrEmpty(FullName) || string.IsNullOrEmpty(Email) || string.IsNullOrEmpty(Password) || string.IsNullOrEmpty(ConfirmPassword))
-                {
-                    ViewBag.Error = "All fields are required.";
-                    return View();
-                }
-
-                if (Password != ConfirmPassword)
-                {
-                    ViewBag.Error = "Passwords do not match.";
-                    return View();
-                }
-
-                if (Password.Length < 8)
-                {
-                    ViewBag.Error = "Password must be at least 8 characters long.";
-                    return View();
-                }
-
-                if (!HasPasswordComplexity(Password))
-                {
-                    ViewBag.Error = "Password must contain uppercase, lowercase, and numbers.";
-                    return View();
-                }
-
-                if (!AgreeTerms)
-                {
-                    ViewBag.Error = "You must agree to Terms and Conditions.";
-                    return View();
-                }
-
-                var existingUser = await _db.Users.FirstOrDefaultAsync(u => u.Email == Email);
-                if (existingUser != null)
-                {
-                    ViewBag.Error = "Email already registered.";
-                    return View();
-                }
-
-                var newUser = new User
-                {
-                    FullName = FullName,
-                    Email = Email,
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(Password),
-                    Role = "Staff",
-                    IsActive = true,
-                    CreatedAt = DateTime.Now
-                };
-
-                _db.Users.Add(newUser);
-                await _db.SaveChangesAsync();
-
-                HttpContext.Session.SetString("UserId", newUser.UserId.ToString());
-                HttpContext.Session.SetString("FullName", newUser.FullName);
-                HttpContext.Session.SetString("Email", newUser.Email);
-                HttpContext.Session.SetString("Role", newUser.Role);
-
-                if (!string.IsNullOrWhiteSpace(selectedPlan))
-                    return RedirectToAction("Checkout", "Payment", new { plan = selectedPlan, returnUrl = ReturnUrl });
-
-                ViewBag.Success = "Account created! You can now sign in.";
-                return View();
-            }
-            catch (SqlException)
-            {
-                ViewBag.Error = "Registration is temporarily unavailable due to a database connection issue. Please try again in a moment.";
-                return View();
-            }
-            catch (Exception ex)
-            {
-                ViewBag.Error = "Registration error: " + ex.Message;
-                return View();
-            }
+            return RedirectToAction("Login");
         }
 
         // GET: /Account/Login
@@ -123,10 +48,9 @@ namespace LogiTrack.Controllers
             return View();
         }
 
-        // POST: /Account/Login
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Login(string Email, string Password)
+        public async Task<IActionResult> Login(string Email, string Password, bool RememberMe)
         {
             try
             {
@@ -171,13 +95,39 @@ namespace LogiTrack.Controllers
                     return View();
                 }
 
+                // Log in directly — set session and cookie auth
+                user.LastLogin = DateTime.Now;
+                await _db.SaveChangesAsync();
+
                 HttpContext.Session.SetString("UserId", user.UserId.ToString());
                 HttpContext.Session.SetString("FullName", user.FullName);
                 HttpContext.Session.SetString("Email", user.Email);
                 HttpContext.Session.SetString("Role", user.Role);
 
-                user.LastLogin = DateTime.Now;
-                await _db.SaveChangesAsync();
+                // Claims-based Cookie Auth for "Keep me signed in"
+                var claims = new List<Claim>
+                {
+                    new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
+                    new Claim(ClaimTypes.Name, user.FullName),
+                    new Claim(ClaimTypes.Email, user.Email),
+                    new Claim(ClaimTypes.Role, user.Role)
+                };
+
+                var claimsIdentity = new ClaimsIdentity(claims, "LogiTrackCookies");
+
+                var authProperties = new AuthenticationProperties
+                {
+                    IsPersistent = RememberMe,
+                    ExpiresUtc = RememberMe ? DateTimeOffset.UtcNow.AddDays(30) : null
+                };
+
+                await HttpContext.SignInAsync("LogiTrackCookies", new ClaimsPrincipal(claimsIdentity), authProperties);
+
+                await _auditLogService.LogAsync(
+                    user.UserId,
+                    $"User login: {user.Email}",
+                    "Users",
+                    HttpContext.Connection.RemoteIpAddress?.ToString());
 
                 // Role-based redirect
                 if (string.Equals(user.Role, "Admin", StringComparison.OrdinalIgnoreCase))
@@ -185,6 +135,13 @@ namespace LogiTrack.Controllers
 
                 if (string.Equals(user.Role, "Manager", StringComparison.OrdinalIgnoreCase))
                     return RedirectToAction("Index", "Manager");
+
+                if (string.Equals(user.Role, "Staff", StringComparison.OrdinalIgnoreCase) || 
+                    string.Equals(user.Role, "Warehouse Staff", StringComparison.OrdinalIgnoreCase))
+                    return RedirectToAction("Index", "Warehouse");
+
+                if (string.Equals(user.Role, "Driver", StringComparison.OrdinalIgnoreCase))
+                    return RedirectToAction("Index", "Driver");
 
                 return RedirectToAction("Index", "Client");
             }
@@ -197,9 +154,70 @@ namespace LogiTrack.Controllers
 
         // GET: /Account/Logout
         [HttpGet]
-        public IActionResult Logout()
+        public async Task<IActionResult> Logout()
         {
+            var userIdText = HttpContext.Session.GetString("UserId");
+            var email = HttpContext.Session.GetString("Email");
+            if (int.TryParse(userIdText, out var userId))
+            {
+                await _auditLogService.LogAsync(
+                    userId,
+                    $"User logout: {email ?? "Unknown"}",
+                    "Users",
+                    HttpContext.Connection.RemoteIpAddress?.ToString());
+            }
+
             HttpContext.Session.Clear();
+            await HttpContext.SignOutAsync("LogiTrackCookies");
+            return RedirectToAction("Login");
+        }
+        // GET: /Account/ForgotPassword
+        [HttpGet]
+        public IActionResult ForgotPassword()
+        {
+            return View();
+        }
+
+        // POST: /Account/ForgotPassword
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ForgotPassword(string Email, string NewPassword, string ConfirmPassword)
+        {
+            if (string.IsNullOrEmpty(Email) || string.IsNullOrEmpty(NewPassword) || string.IsNullOrEmpty(ConfirmPassword))
+            {
+                ViewBag.Error = "All fields are required.";
+                return View();
+            }
+
+            if (NewPassword != ConfirmPassword)
+            {
+                ViewBag.Error = "Passwords do not match.";
+                return View();
+            }
+
+            if (NewPassword.Length < 8)
+            {
+                ViewBag.Error = "Password must be at least 8 characters long.";
+                return View();
+            }
+
+            if (!HasPasswordComplexity(NewPassword))
+            {
+                ViewBag.Error = "Password must contain uppercase, lowercase, numbers, and symbols.";
+                return View();
+            }
+
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == Email);
+            if (user == null)
+            {
+                ViewBag.Error = "Email address not found.";
+                return View();
+            }
+
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(NewPassword);
+            await _db.SaveChangesAsync();
+
+            TempData["Success"] = "Password has been successfully reset! You can now sign in.";
             return RedirectToAction("Login");
         }
 
@@ -208,7 +226,8 @@ namespace LogiTrack.Controllers
         {
             return password.Any(char.IsUpper) && 
                    password.Any(char.IsLower) && 
-                   password.Any(char.IsDigit);
+                   password.Any(char.IsDigit) &&
+                   password.Any(c => !char.IsLetterOrDigit(c));
         }
 
         private static string? NormalizePlan(string? plan)
@@ -236,6 +255,13 @@ namespace LogiTrack.Controllers
 
             if (string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase))
                 return RedirectToAction("Index", "Manager");
+
+            if (string.Equals(role, "Staff", StringComparison.OrdinalIgnoreCase) || 
+                string.Equals(role, "Warehouse Staff", StringComparison.OrdinalIgnoreCase))
+                return RedirectToAction("Index", "Warehouse");
+
+            if (string.Equals(role, "Driver", StringComparison.OrdinalIgnoreCase))
+                return RedirectToAction("Index", "Driver");
 
             return RedirectToAction("Index", "Client");
         }

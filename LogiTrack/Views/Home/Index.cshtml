@@ -125,7 +125,6 @@
             background-image: url('@Url.Content("~/Images/image1.jpg")');
             background-size: cover;
             background-position: center;
-            background-attachment: fixed;
             position: relative;
         }
 
@@ -182,11 +181,8 @@
                 </p>
 
                 <div class="flex flex-col sm:flex-row gap-4 pt-4">
-                    <a href="@Url.Action("Register", "Account")" class="inline-flex items-center justify-center px-8 py-4 gradient-button text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition">
-                        Get Started Free
-                    </a>
-                    <a href="@Url.Action("Index", "Tracking")" class="inline-flex items-center justify-center px-8 py-4 border-2 border-white text-white font-semibold rounded-xl hover:bg-white/20 transition backdrop-blur-sm">
-                        Track Shipment
+                    <a href="@Url.Action("Login", "Account")" class="inline-flex items-center justify-center px-8 py-4 gradient-button text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition">
+                        Access Platform
                     </a>
                 </div>
 
@@ -224,7 +220,7 @@
                         </div>
 
                         <!-- Track shipment card -->
-                        <div class="rounded-2xl bg-slate-50 border border-slate-200 p-5">
+                        <div class="rounded-2xl bg-slate-50 border border-slate-200 p-5" x-data="homeTracker">
                             <div class="flex items-center justify-between gap-4">
                                 <div class="flex items-center gap-3">
                                     <div class="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-700">
@@ -241,25 +237,22 @@
                                     Open tracker
                                 </a>
                             </div>
-
-                            <form method="get" action="@Url.Action("Index", "Tracking")" class="mt-4 flex gap-2">
-                                <input name="trackingNumber" type="text" placeholder="e.g. SHP-2024-0091" maxlength="30"
+ 
+                            <div class="mt-4 flex gap-2">
+                                <input x-model="trackingNumber" type="text" placeholder="e.g. SHP-2024-0091" maxlength="30"
+                                       @@keyup.enter="trackShipment()"
                                        class="flex-1 bg-white border border-slate-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 text-slate-900 placeholder:text-slate-500 rounded-xl px-4 py-2.5 text-sm outline-none transition-all font-mono" />
-                                <button type="submit" class="px-4 py-2.5 rounded-xl gradient-button text-white text-sm font-semibold shadow-md hover:shadow-lg transition">
-                                    Track
+                                <button @@click="trackShipment()" :disabled="loading" class="px-4 py-2.5 rounded-xl gradient-button text-white text-sm font-semibold shadow-md hover:shadow-lg transition flex items-center gap-2">
+                                    <svg x-show="loading" class="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                    <span x-text="loading ? 'Checking...' : 'Track'"></span>
                                 </button>
-                            </form>
+                            </div>
                         </div>
 
-                        <!-- Account actions -->
-                        <div class="mt-6 grid grid-cols-2 gap-3">
+                        <div class="mt-6">
                             <a href="@Url.Action("Login", "Account")"
-                               class="inline-flex items-center justify-center px-4 py-3 rounded-2xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition shadow-sm">
-                                Sign in
-                            </a>
-                            <a href="@Url.Action("Register", "Account")"
-                               class="inline-flex items-center justify-center px-4 py-3 rounded-2xl bg-white border border-slate-200 text-slate-900 text-sm font-semibold hover:border-slate-300 hover:bg-slate-50 transition shadow-sm">
-                                Create account
+                               class="w-full inline-flex items-center justify-center px-4 py-3 rounded-2xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition shadow-sm">
+                                Sign in to Dashboard
                             </a>
                         </div>
 
@@ -438,9 +431,9 @@
         <div class="max-w-4xl mx-auto px-6 text-center float-in">
             <h2 class="font-display text-4xl font-bold mb-4">Start Managing Your Logistics Smarter Today</h2>
             <p class="text-lg text-orange-100 mb-8">Get started in minutes. No credit card required.</p>
-            <a href="@Url.Action("Register", "Account")"
+            <a href="@Url.Action("Login", "Account")"
                 class="inline-flex px-8 py-4 bg-white text-orange-600 font-bold rounded-lg hover:bg-gray-100 transition shadow-lg">
-                Get Started Free
+                Sign In Now
             </a>
         </div>
     </section>
@@ -498,5 +491,76 @@
         </div>
     </footer>
 
+    <!-- GLOBAL SYSTEM NOTIFICATIONS -->
+    <div x-data="{ toasts: [] }"
+         @@notify.window="toasts.push({ id: Date.now(), message: $event.detail.message, type: $event.detail.type || 'success' }); setTimeout(() => { toasts = toasts.filter(t => t.id !== toasts[0]?.id) }, 4000)"
+         class="fixed inset-0 z-[9999] pointer-events-none">
+
+        <!-- GLOBAL TOASTS -->
+        <div class="fixed top-6 right-6 flex flex-col gap-3 max-w-sm w-full">
+            <template x-for="toast in toasts" :key="toast.id">
+                <div x-show="true"
+                     x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-x-12" x-transition:enter-end="opacity-100 translate-x-0"
+                     x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 translate-x-0" x-transition:leave-end="opacity-0 translate-x-12"
+                     :class="{
+                        'bg-white border-emerald-100': toast.type === 'success',
+                        'bg-white border-red-100': toast.type === 'error',
+                        'bg-white border-sky-100': toast.type === 'info'
+                     }"
+                     class="pointer-events-auto border-2 p-4 rounded-2xl shadow-xl flex items-start gap-4 bg-white">
+                    <div :class="{
+                        'bg-emerald-100 text-emerald-600': toast.type === 'success',
+                        'bg-red-100 text-red-600': toast.type === 'error',
+                        'bg-sky-100 text-sky-600': toast.type === 'info'
+                    }" class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <template x-if="toast.type === 'success'"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M5 13l4 4L19 7" stroke-width="3" /></svg></template>
+                        <template x-if="toast.type === 'error'"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M6 18L18 6M6 6l12 12" stroke-width="3" /></svg></template>
+                        <template x-if="toast.type === 'info'"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="3" /></svg></template>
+                    </div>
+                    <div class="flex-1 text-left">
+                        <p class="text-sm font-bold text-slate-900" x-text="toast.type.toUpperCase()"></p>
+                        <p class="text-xs text-slate-500 mt-0.5" x-text="toast.message"></p>
+                    </div>
+                    <button @@click="toasts = toasts.filter(t => t.id !== toast.id)" class="text-slate-300 hover:text-slate-400">&times;</button>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <script>
+        window.showToast = function (message, type = 'success') {
+            window.dispatchEvent(new CustomEvent('notify', { detail: { message, type } }));
+        };
+
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('homeTracker', () => ({
+                trackingNumber: '',
+                loading: false,
+
+                async trackShipment() {
+                    if (!this.trackingNumber.trim()) {
+                        window.showToast('Please enter a tracking number', 'error');
+                        return;
+                    }
+
+                    this.loading = true;
+                    try {
+                        const res = await fetch(`@Url.Action("ActiveShipments", "Tracking")?trackingNumber=${this.trackingNumber}`);
+                        const data = await res.json();
+
+                        if (data && data.length > 0) {
+                            window.location.href = `@Url.Action("Index", "Tracking")?trackingNumber=${this.trackingNumber}`;
+                        } else {
+                            window.showToast('Tracking number not found.', 'error');
+                        }
+                    } catch (err) {
+                        window.showToast('Failed to check tracking number', 'error');
+                    } finally {
+                        this.loading = false;
+                    }
+                }
+            }));
+        });
+    </script>
 </body>
 </html>

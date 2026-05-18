@@ -1,0 +1,196 @@
+@model LogiTrack.Models.DriverDashboardViewModel
+@{
+    ViewData["Title"] = "Driver Console";
+    ViewData["ActiveNav"] = "dashboard";
+    Layout = "_ModuleLayout";
+}
+
+<div class="max-w-md mx-auto space-y-6 pb-20">
+        
+        <div class="p-6 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-2xl bg-sky-600 flex items-center justify-center shadow-lg shadow-sky-500/30">
+                    <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+                        <path d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="font-display text-2xl font-bold uppercase tracking-tight leading-none text-slate-900">@Model.Driver.FullName</h1>
+                    <p class="text-xs text-slate-500">@Model.Driver.VehiclePlate • @Model.Driver.VehicleType</p>
+                </div>
+            </div>
+            <a href="@Url.Action("Index", "Profile")" class="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition shadow-sm">
+                <svg class="w-5 h-5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+            </a>
+        </div>
+
+        <main class="flex-1 px-6 space-y-6">
+            
+            <!-- Quick Stats -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-slate-800/50 border border-slate-700 p-4 rounded-3xl">
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Safety Score</p>
+                    <div class="flex items-end gap-2 mt-1">
+                        <span class="text-3xl font-bold text-emerald-400">@Model.SafetyScore</span>
+                        <span class="text-xs text-slate-500 pb-1">/100</span>
+                    </div>
+                </div>
+                <div class="bg-slate-800/50 border border-slate-700 p-4 rounded-3xl">
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">On-Time Rate</p>
+                    <div class="flex items-end gap-2 mt-1">
+                        <span class="text-3xl font-bold text-sky-400">@Model.WeeklyOnTimeRate%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Mission -->
+            <section class="bg-gradient-to-br from-sky-600 to-indigo-700 rounded-[2rem] p-6 shadow-xl shadow-sky-900/20 relative overflow-hidden">
+                <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+                
+                <h2 class="text-xs font-bold text-white/70 uppercase tracking-widest mb-4">Current Assignment</h2>
+                
+                @if (Model.ActiveRoute != null)
+                {
+                    <div class="space-y-4">
+                        <div class="flex items-start justify-between">
+                            <div class="space-y-1">
+                                <p class="text-2xl font-bold font-display uppercase tracking-tight">@Model.ActiveRoute.StartHub → @Model.ActiveRoute.EndHub</p>
+                                <p class="text-sm text-white/80">Route: @Model.ActiveRoute.RouteNumber</p>
+                            </div>
+                            <span class="px-3 py-1 rounded-full bg-white/20 text-white text-[10px] font-bold uppercase tracking-wider backdrop-blur-md border border-white/10">
+                                @Model.ActiveRoute.Status
+                            </span>
+                        </div>
+
+                        <div class="pt-4 border-t border-white/10 flex items-center justify-between">
+                            <div>
+                                <p class="text-[10px] text-white/60 uppercase font-bold">Shipments</p>
+                                <p class="text-lg font-bold">@Model.Shipments.Count</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-white/60 uppercase font-bold">Est. Time</p>
+                                <p class="text-lg font-bold">@(Model.ActiveRoute.EstimatedMinutes ?? 0)m</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-white/60 uppercase font-bold">Distance</p>
+                                <p class="text-lg font-bold">@(Model.ActiveRoute.DistanceKm ?? 0) km</p>
+                            </div>
+                        </div>
+
+                        <div class="pt-6 grid grid-cols-1 gap-2">
+                            @if (Model.ActiveRoute.Status == "Planned")
+                            {
+                                <form action="@Url.Action("UpdateRouteStatus", "Driver")" method="post">
+                                    <input type="hidden" name="routeId" value="@Model.ActiveRoute.RouteId" />
+                                    <input type="hidden" name="status" value="In Transit" />
+                                    <button class="w-full py-4 rounded-2xl bg-white text-indigo-700 font-bold text-sm shadow-lg hover:bg-slate-100 transition active:scale-95">
+                                        START ROUTE
+                                    </button>
+                                </form>
+                            }
+                            else if (Model.ActiveRoute.Status == "In Transit")
+                            {
+                                <form action="@Url.Action("UpdateRouteStatus", "Driver")" method="post">
+                                    <input type="hidden" name="routeId" value="@Model.ActiveRoute.RouteId" />
+                                    <input type="hidden" name="status" value="Completed" />
+                                    <button class="w-full py-4 rounded-2xl bg-emerald-400 text-slate-900 font-bold text-sm shadow-lg hover:bg-emerald-300 transition active:scale-95">
+                                        COMPLETE DELIVERY
+                                    </button>
+                                </form>
+                            }
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="py-10 text-center">
+                        <div class="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg class="w-8 h-8 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <p class="font-bold">Awaiting Assignment</p>
+                        <p class="text-xs text-white/60 mt-1">Please wait for dispatch to assign a route.</p>
+                    </div>
+                }
+            </section>
+
+            <!-- Shipment List -->
+            @if (Model.Shipments.Any())
+            {
+                <section>
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-display text-lg font-bold uppercase tracking-wider text-slate-400">Cargo Details</h3>
+                        <span class="text-xs text-slate-500">@Model.Shipments.Count items</span>
+                    </div>
+                    <div class="space-y-3">
+                        @foreach (var shipment in Model.Shipments)
+                        {
+                            <div class="bg-slate-800/30 border border-slate-700/50 p-4 rounded-2xl flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-slate-700 flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-bold">@shipment.ShipmentCode</p>
+                                        <p class="text-[10px] text-slate-500 uppercase font-bold">@shipment.Status</p>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-xs font-bold">@shipment.Weight kg</p>
+                                    <p class="text-[10px] text-slate-500">@shipment.Destination</p>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </section>
+            }
+
+            <!-- Recent Activity -->
+            <section class="pb-6">
+                <h3 class="font-display text-lg font-bold uppercase tracking-wider text-slate-400 mb-4">Activity Log</h3>
+                <div class="space-y-4">
+                    @foreach (var log in Model.RecentActivity)
+                    {
+                        <div class="flex gap-4">
+                            <div class="w-0.5 bg-slate-700 relative">
+                                <div class="absolute top-1 -left-[3px] w-2 h-2 rounded-full bg-sky-500"></div>
+                            </div>
+                            <div class="pb-4">
+                                <p class="text-xs font-bold">@log.Action</p>
+                                <p class="text-[10px] text-slate-500">@log.Timestamp.ToString("MMM dd, hh:mm tt")</p>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Fixed Bottom Navigation -->
+        <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto glass-panel border-t border-slate-200/10 py-3 px-8 flex items-center justify-between text-slate-400">
+            <a href="#" class="flex flex-col items-center gap-1 text-sky-500">
+                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" /></svg>
+                <span class="text-[9px] font-bold uppercase">Dashboard</span>
+            </a>
+            <a href="@Url.Action("Index", "Tracking")" class="flex flex-col items-center gap-1 hover:text-white transition">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                <span class="text-[9px] font-bold uppercase">Routes</span>
+            </a>
+            <a href="@Url.Action("Index", "Profile")" class="flex flex-col items-center gap-1 hover:text-white transition">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                <span class="text-[9px] font-bold uppercase">Account</span>
+            </a>
+        </nav>
+
+    </div>
+
+    @if (TempData["DriverSuccess"] != null)
+    {
+        <div x-data="{ open: true }" x-init="setTimeout(() => open = false, 3000)" x-show="open" 
+             class="fixed top-5 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-xs bg-emerald-500 text-white p-4 rounded-2xl shadow-xl flex items-center gap-3">
+             <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+             <p class="text-sm font-bold">@TempData["DriverSuccess"]</p>
+        </div>
+    }

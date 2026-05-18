@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace LogiTrack.Models
@@ -45,6 +45,14 @@ namespace LogiTrack.Models
         [StringLength(500)]
         public string? Notes { get; set; }
 
+        public int? RouteId { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal ShippingFee { get; set; } = 0;
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal EstimatedCost { get; set; } = 0;
+
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 
         [ForeignKey("CreatedByUserId")]
@@ -55,5 +63,8 @@ namespace LogiTrack.Models
 
         [ForeignKey("WarehouseId")]
         public Warehouse Warehouse { get; set; }
+
+        [ForeignKey("RouteId")]
+        public ShipmentRoute? Route { get; set; }
     }
 }

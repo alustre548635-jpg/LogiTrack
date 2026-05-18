@@ -22,5 +22,8 @@ namespace LogiTrack.Models
         public List<ActivityLog> RecentActivities { get; set; } = new();
         public List<User> Users { get; set; } = new();
         public Dictionary<int, List<string>> UserAssignedModules { get; set; } = new();
+        public List<Warehouse> Warehouses { get; set; } = new();
+        // Maps UserId -> WarehouseId for staff members
+        public Dictionary<int, int> UserWarehouseMap { get; set; } = new();
     }
 }

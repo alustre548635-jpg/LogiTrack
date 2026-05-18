@@ -1,118 +1,15 @@
 @model LogiTrack.Models.AdminDashboardViewModel
 @{
     ViewData["Title"] = "Super Admin Dashboard";
-    Layout = null;
+    ViewData["ActiveNav"] = "admin-overview";
+    Layout = "_ModuleLayout";
 }
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LogiTrack - Super Admin</title>
-    <link rel="icon" type="image/png" href="@Url.Content("~/Images/Logo.png")" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'DM Sans', sans-serif; }
-        .font-display { font-family: 'Barlow Condensed', sans-serif; }
-        .gradient-accent { background: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%); }
-        /* Sidebar drawer transitions */
-        .sidebar-overlay {
-            transition: opacity 0.3s ease;
-        }
-        .sidebar-drawer {
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-    </style>
-</head>
-<body class="bg-slate-50 text-slate-900" x-data="{ activeModule: 'overview', sidebarOpen: false }">
-    <div class="min-h-screen flex flex-col">
 
-        <!-- Top Header Bar with Burger Menu -->
-        <header class="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 py-3 flex items-center gap-4">
-            <button type="button" @@click="sidebarOpen = true" id="admin-burger-btn"
-                    class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-900 text-white hover:bg-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500/40">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-            </button>
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center">
-                    <img src="@Url.Content("~/Images/Logo.png")" alt="LogiTrack" class="object-contain w-full h-full" />
-                </div>
-                <div>
-                    <h1 class="font-display text-lg font-bold leading-tight text-slate-900">Super Admin</h1>
-                    <p class="text-xs text-slate-500 leading-tight">LogiTrack Control Panel</p>
-                </div>
-            </div>
-        </header>
-
-        <!-- Sidebar Overlay -->
-        <div x-show="sidebarOpen"
-             x-transition:enter="sidebar-overlay" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-             x-transition:leave="sidebar-overlay" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
-             @@click="sidebarOpen = false"
-             class="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
-             style="display: none;"></div>
-
-        <!-- Sidebar Drawer -->
-        <aside x-show="sidebarOpen"
-               x-transition:enter="sidebar-drawer" x-transition:enter-start="-translate-x-full" x-transition:enter-end="translate-x-0"
-               x-transition:leave="sidebar-drawer" x-transition:leave-start="translate-x-0" x-transition:leave-end="-translate-x-full"
-               class="fixed top-0 left-0 z-50 h-full w-72 bg-slate-900 text-slate-100 p-6 overflow-y-auto shadow-2xl"
-               style="display: none;" id="admin-sidebar">
-
-            <!-- Close button -->
-            <button type="button" @@click="sidebarOpen = false"
-                    class="absolute top-4 right-4 w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center transition-colors">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </button>
-
-            <div class="mb-8">
-                <div class="w-20 h-20 rounded-2xl overflow-hidden bg-white/10 border border-slate-700 flex items-center justify-center mb-4">
-                    <img src="@Url.Content("~/Images/Logo.png")" alt="LogiTrack" class="object-contain w-full h-full" />
-                </div>
-                <h1 class="font-display text-3xl font-bold">Super Admin</h1>
-                <p class="text-sm text-slate-300">LogiTrack Control Panel</p>
-            </div>
-
-            <nav class="space-y-2 text-sm">
-                <button type="button" @@click="activeModule = 'overview'; sidebarOpen = false" :class="activeModule === 'overview' ? 'bg-slate-800 font-semibold' : 'hover:bg-slate-800'" class="w-full flex items-center gap-2 px-3 py-2 rounded-lg transition text-left">
-                    <svg class="w-4 h-4 text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12h18M3 6h18M3 18h18" /></svg>
-                    <span>Overview</span>
-                </button>
-                <button type="button" @@click="activeModule = 'manage-users'; sidebarOpen = false" :class="activeModule === 'manage-users' ? 'bg-slate-800 font-semibold' : 'hover:bg-slate-800'" class="w-full flex items-center gap-2 px-3 py-2 rounded-lg transition text-left">
-                    <svg class="w-4 h-4 text-emerald-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5V4H2v16h5m10 0v-2a4 4 0 00-8 0v2m8 0H9m4-10a3 3 0 100-6 3 3 0 000 6z" /></svg>
-                    <span>Manage Users & Roles</span>
-                </button>
-                <button type="button" @@click="activeModule = 'settings'; sidebarOpen = false" :class="activeModule === 'settings' ? 'bg-slate-800 font-semibold' : 'hover:bg-slate-800'" class="w-full flex items-center gap-2 px-3 py-2 rounded-lg transition text-left">
-                    <svg class="w-4 h-4 text-fuchsia-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-1.14 1.603-1.14 1.902 0a1 1 0 001.516.59c.996-.63 2.306.68 1.676 1.676a1 1 0 00.59 1.516c1.14.3 1.14 1.603 0 1.902a1 1 0 00-.59 1.516c.63.996-.68 2.306-1.676 1.676a1 1 0 00-1.516.59c-.3 1.14-1.603 1.14-1.902 0a1 1 0 00-1.516-.59c-.996.63-2.306-.68-1.676-1.676a1 1 0 00-.59-1.516c-1.14-.3-1.14-1.603 0-1.902a1 1 0 00.59-1.516c-.63-.996.68-2.306 1.676-1.676a1 1 0 001.516-.59zM12 10a2 2 0 100 4 2 2 0 000-4z" /></svg>
-                    <span>System Settings</span>
-                </button>
-                <button type="button" @@click="activeModule = 'modules'; sidebarOpen = false" :class="activeModule === 'modules' ? 'bg-slate-800 font-semibold' : 'hover:bg-slate-800'" class="w-full flex items-center gap-2 px-3 py-2 rounded-lg transition text-left">
-                    <svg class="w-4 h-4 text-amber-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h7v5H4zM13 6h7v5h-7zM4 13h7v5H4zM13 13h7v5h-7z" /></svg>
-                    <span>All Modules Access</span>
-                </button>
-                <button type="button" @@click="activeModule = 'logs'; sidebarOpen = false" :class="activeModule === 'logs' ? 'bg-slate-800 font-semibold' : 'hover:bg-slate-800'" class="w-full flex items-center gap-2 px-3 py-2 rounded-lg transition text-left">
-                    <svg class="w-4 h-4 text-cyan-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-6m3 6V7m3 10v-4M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-                    <span>Reports & Logs</span>
-                </button>
-            </nav>
-
-            <div class="mt-10 pt-6 border-t border-slate-700">
-                <a href="@Url.Action("Logout", "Account")" class="inline-flex w-full items-center justify-center px-4 py-2 rounded-lg bg-sky-600 text-white font-semibold hover:bg-sky-500 transition">
-                    Logout
-                </a>
-            </div>
-        </aside>
-
-        <main class="flex-1 p-6 lg:p-8">
+<!-- Alpine state wrapper -->
+<div class="flex-1" x-init="activeModule = window.location.hash ? window.location.hash.substring(1) : '@(TempData["ActiveModule"] ?? "overview")'">
+    <main class="p-6 lg:p-8">
             <div class="mb-8" x-show="activeModule === 'overview'">
-                <h2 class="font-display text-4xl font-bold">Super Admin Dashboard</h2>
+                <h2 class="font-display text-4xl font-bold uppercase tracking-wide">Dashboard</h2>
                 <p class="text-slate-600">Manage users and roles, configure system settings, access all modules, and monitor reports/logs.</p>
             </div>
             @if (TempData["AdminSuccess"] != null)
@@ -194,19 +91,26 @@
                     <div class="p-3 rounded-lg bg-slate-50 border border-slate-200">Drivers: <span class="font-semibold">@Model.DriverUsers</span></div>
                 </div>
 
-                <div class="rounded-xl border border-slate-200 p-4 mb-6">
+                <div class="rounded-xl border border-slate-200 p-4 mb-6" x-data="{ createRole: '' }">
                     <h4 class="font-semibold text-slate-900 mb-3">Add User</h4>
                     <form method="post" action="@Url.Action("CreateUser","Admin")" class="grid grid-cols-1 md:grid-cols-5 gap-3">
                         @Html.AntiForgeryToken()
                         <input type="text" name="FullName" required placeholder="Full name" class="md:col-span-1 bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500" />
                         <input type="email" name="Email" required placeholder="Email" class="md:col-span-1 bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500" />
-                        <select name="Role" required class="md:col-span-1 bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500">
+                        <select name="Role" required x-model="createRole" class="md:col-span-1 bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500">
                             <option value="">Role</option>
                             <option>Manager</option>
                             <option>Staff</option>
                             <option>Driver</option>
                         </select>
-                        <input type="password" name="Password" required minlength="8" placeholder="Password" class="md:col-span-1 bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500" />
+                        <select name="WarehouseId" x-show="createRole === 'Staff'" x-bind:required="createRole === 'Staff'" class="md:col-span-1 bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500">
+                            <option value="">Assign Warehouse</option>
+                            @foreach (var wh in Model.Warehouses)
+                            {
+                                <option value="@wh.WarehouseId">@wh.Name</option>
+                            }
+                        </select>
+
                         <button type="submit" class="md:col-span-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-sky-600 text-white text-sm font-semibold hover:bg-sky-500 transition">
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
@@ -246,6 +150,7 @@
                                 <th class="py-2 pr-3">Name</th>
                                 <th class="py-2 pr-3">Email</th>
                                 <th class="py-2 pr-3">Role</th>
+                                <th class="py-2 pr-3">Warehouse</th>
                                 <th class="py-2 pr-3">Status</th>
                                 <th class="py-2 pr-3">Actions</th>
                             </tr>
@@ -262,6 +167,21 @@
                                     <td class="py-3 pr-3">@user.Email</td>
                                     <td class="py-3 pr-3">@user.Role</td>
                                     <td class="py-3 pr-3">
+                                        @if (user.Role == "Staff" && Model.UserWarehouseMap.TryGetValue(user.UserId, out var whId))
+                                        {
+                                            var whName = Model.Warehouses.FirstOrDefault(w => w.WarehouseId == whId)?.Name ?? "—";
+                                            <span class="px-2 py-1 rounded-full text-xs bg-violet-100 text-violet-700">@whName</span>
+                                        }
+                                        else if (user.Role == "Staff")
+                                        {
+                                            <span class="text-xs text-slate-400 italic">Not assigned</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-xs text-slate-300">—</span>
+                                        }
+                                    </td>
+                                    <td class="py-3 pr-3">
                                         <span class="px-2 py-1 rounded-full text-xs @(user.IsActive ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700")">
                                             @(user.IsActive ? "Active" : "Inactive")
                                         </span>
@@ -275,40 +195,32 @@
                                                     @(user.IsActive ? "Deactivate" : "Activate")
                                                 </button>
                                             </form>
-                                            <details>
+                                            <details x-data="{ editRole: '@user.Role' }">
                                                 <summary class="cursor-pointer text-xs text-sky-600 font-semibold">Edit user</summary>
                                                 <form method="post" action="@Url.Action("UpdateUser","Admin")" class="mt-2 grid grid-cols-1 gap-2">
                                                     @Html.AntiForgeryToken()
                                                     <input type="hidden" name="UserId" value="@user.UserId" />
                                                     <input type="text" name="FullName" value="@user.FullName" required class="bg-slate-50 border border-slate-300 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500" />
                                                     <input type="email" name="Email" value="@user.Email" required class="bg-slate-50 border border-slate-300 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500" />
-                                                    <select name="Role" required class="bg-slate-50 border border-slate-300 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500">
-                                                        @if (user.Role == "Manager")
+                                                    <select name="Role" required x-model="editRole" class="bg-slate-50 border border-slate-300 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500">
+                                                        @if (user.Role == "Manager") { <option value="Manager" selected>Manager</option> } else { <option value="Manager">Manager</option> }
+                                                        @if (user.Role == "Staff") { <option value="Staff" selected>Staff</option> } else { <option value="Staff">Staff</option> }
+                                                        @if (user.Role == "Driver") { <option value="Driver" selected>Driver</option> } else { <option value="Driver">Driver</option> }
+                                                    </select>
+                                                    @{
+                                                        var editWhId = Model.UserWarehouseMap.TryGetValue(user.UserId, out var ewh) ? ewh : 0;
+                                                    }
+                                                    <select name="WarehouseId" x-show="editRole === 'Staff'" x-bind:required="editRole === 'Staff'" class="bg-slate-50 border border-slate-300 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500">
+                                                        <option value="">Assign Warehouse</option>
+                                                        @foreach (var wh in Model.Warehouses)
                                                         {
-                                                            <option value="Manager" selected>Manager</option>
-                                                        }
-                                                        else
-                                                        {
-                                                            <option value="Manager">Manager</option>
-                                                        }
-                                                        @if (user.Role == "Staff")
-                                                        {
-                                                            <option value="Staff" selected>Staff</option>
-                                                        }
-                                                        else
-                                                        {
-                                                            <option value="Staff">Staff</option>
-                                                        }
-                                                        @if (user.Role == "Driver")
-                                                        {
-                                                            <option value="Driver" selected>Driver</option>
-                                                        }
-                                                        else
-                                                        {
-                                                            <option value="Driver">Driver</option>
+                                                            @if (wh.WarehouseId == editWhId) { <option value="@wh.WarehouseId" selected>@wh.Name</option> } else { <option value="@wh.WarehouseId">@wh.Name</option> }
                                                         }
                                                     </select>
-                                                    <input type="password" name="NewPassword" placeholder="New password (optional)" class="bg-slate-50 border border-slate-300 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500" />
+                                                    <div>
+                                                        <input type="password" name="NewPassword" placeholder="New password (optional)" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500" />
+                                                        <p class="text-[9px] text-slate-500 mt-0.5 leading-tight italic">Requires A-z, 0-9, and symbols (!@@#).</p>
+                                                    </div>
                                                     <button type="submit" class="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition">Save</button>
                                                 </form>
                                             </details>
@@ -329,21 +241,20 @@
                      x-data="{
                         selectedUserId: '',
                         selectedModules: [],
+                        isStaffRole: false,
                         syncModules() {
                             const userSelect = this.$refs.userSelect;
-                            if (!userSelect) {
+                            if (!userSelect || !userSelect.selectedIndex) {
                                 this.selectedModules = [];
+                                this.isStaffRole = false;
                                 return;
                             }
-
-                            const selectedOption = userSelect.options[userSelect.selectedIndex];
-                            if (!selectedOption || !selectedOption.value) {
-                                this.selectedModules = [];
-                                return;
-                            }
+                            const opt = userSelect.options[userSelect.selectedIndex];
+                            const role = (opt.dataset.role || '').trim();
+                            this.isStaffRole = (role.toLowerCase() === 'staff');
 
                             try {
-                                const raw = selectedOption.dataset.modules || '[]';
+                                const raw = opt.dataset.modules || '[]';
                                 const parsed = JSON.parse(raw);
                                 this.selectedModules = Array.isArray(parsed) ? [...parsed] : [];
                             } catch {
@@ -370,6 +281,7 @@
                                 {
                                     var assignedModules = Model.UserAssignedModules.TryGetValue(user.UserId, out var modules) ? modules : new List<string>();
                                     <option value="@user.UserId"
+                                            data-role="@user.Role"
                                             data-modules='@System.Text.Json.JsonSerializer.Serialize(assignedModules)'>
                                         @user.FullName (@user.Role)
                                     </option>
@@ -383,7 +295,10 @@
                                 <label class="flex items-center gap-2"><input type="checkbox" x-model="selectedModules" name="SelectedModules" value="Dashboard" class="accent-sky-600" /> Dashboard</label>
                                 <label class="flex items-center gap-2"><input type="checkbox" x-model="selectedModules" name="SelectedModules" value="Shipments" class="accent-sky-600" /> Shipments</label>
                                 <label class="flex items-center gap-2"><input type="checkbox" x-model="selectedModules" name="SelectedModules" value="Routes" class="accent-sky-600" /> Routes</label>
-                                <label class="flex items-center gap-2"><input type="checkbox" x-model="selectedModules" name="SelectedModules" value="Warehouses" class="accent-sky-600" /> Warehouses</label>
+                                <label class="flex items-center gap-2">
+                                    <input type="checkbox" x-model="selectedModules" name="SelectedModules" value="Warehouses" class="accent-sky-600" />
+                                    <span x-text="isStaffRole ? 'Facility Hub (Staff POV)' : 'Warehouses (Mgmt POV)'"></span>
+                                </label>
                                 <label class="flex items-center gap-2"><input type="checkbox" x-model="selectedModules" name="SelectedModules" value="Tracking" class="accent-sky-600" /> Tracking</label>
                                 <label class="flex items-center gap-2"><input type="checkbox" x-model="selectedModules" name="SelectedModules" value="Freight Costs" class="accent-sky-600" /> Freight Costs</label>
                                 <label class="flex items-center gap-2"><input type="checkbox" x-model="selectedModules" name="SelectedModules" value="Reports" class="accent-sky-600" /> Reports</label>
@@ -420,10 +335,10 @@
                 <div class="px-6 py-4 border-b border-slate-200">
                     <h3 class="font-display text-3xl font-bold">View Reports and Logs</h3>
                 </div>
-                <div class="divide-y divide-slate-100">
+                <div id="audit-log-list" class="divide-y divide-slate-100">
                     @if (Model.RecentActivities.Count == 0)
                     {
-                        <p class="px-6 py-6 text-slate-500">No activity logs yet.</p>
+                        <p id="audit-empty-state" class="px-6 py-6 text-slate-500">No activity logs yet.</p>
                     }
                     else
                     {
@@ -450,6 +365,9 @@
             </section>
         </main>
     </div>
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const roleCtx = document.getElementById('usersByRoleChart');
@@ -504,7 +422,69 @@
                     }
                 });
             }
+
+            const logList = document.getElementById('audit-log-list');
+            const emptyState = document.getElementById('audit-empty-state');
+            const htmlEscape = (value) => String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+
+            const formatTime = (timestamp) => {
+                const date = timestamp ? new Date(timestamp) : new Date();
+                if (Number.isNaN(date.getTime())) return '';
+                return date.toLocaleString([], {
+                    month: 'short',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                });
+            };
+
+            const renderLogItem = (entry) => {
+                const action = entry.action ?? entry.Action ?? '';
+                const tableAffected = entry.tableAffected ?? entry.TableAffected ?? '';
+                const userFullName = entry.userFullName ?? entry.UserFullName ?? 'Unknown user';
+                const timestamp = entry.timestamp ?? entry.Timestamp;
+                return `
+                    <div class="px-6 py-4">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <p class="font-medium text-slate-800">${htmlEscape(action)}</p>
+                                <p class="text-sm text-slate-500">
+                                    by ${htmlEscape(userFullName)}
+                                    ${tableAffected ? ` - ${htmlEscape(tableAffected)}` : ''}
+                                </p>
+                            </div>
+                            <span class="text-xs text-slate-400 whitespace-nowrap">${htmlEscape(formatTime(timestamp))}</span>
+                        </div>
+                    </div>
+                `;
+            };
+
+            if (window.signalR && logList) {
+                const connection = new signalR.HubConnectionBuilder()
+                    .withUrl('/hubs/audit-log')
+                    .withAutomaticReconnect()
+                    .build();
+
+                connection.on('auditLogCreated', (entry) => {
+                    if (emptyState) {
+                        emptyState.remove();
+                    }
+                    logList.insertAdjacentHTML('afterbegin', renderLogItem(entry));
+                    while (logList.children.length > 20) {
+                        logList.removeChild(logList.lastElementChild);
+                    }
+                });
+
+                connection.start().catch(() => {
+                    // Keep the dashboard usable even if the real-time stream fails.
+                });
+            }
         });
     </script>
-</body>
-</html>
+}

@@ -51,7 +51,7 @@ namespace LogiTrack.Controllers
                 RecentActivities = await _db.ActivityLogs
                     .Include(a => a.User)
                     .OrderByDescending(a => a.Timestamp)
-                    .Take(8)
+                    .Take(50)
                     .ToListAsync()
             };
 

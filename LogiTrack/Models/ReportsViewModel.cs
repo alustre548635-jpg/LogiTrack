@@ -21,6 +21,10 @@ namespace LogiTrack.Models
         public int TotalTrackingEvents { get; set; }
         public int TotalActivities { get; set; }
 
+        public decimal TotalRevenue { get; set; }
+        public decimal TotalOperationalCost { get; set; }
+        public decimal NetProfit { get; set; }
+
         public List<DailyCountPoint> ShipmentsByDay { get; set; } = new();
         public List<DailyAmountPoint> InvoiceAmountByDay { get; set; } = new();
 

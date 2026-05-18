@@ -64,9 +64,12 @@ namespace LogiTrack.Controllers
 
             var today = DateTime.Today;
             var carriers = await _db.Carriers.Where(c => c.IsActive).OrderBy(c => c.Name).ToListAsync();
+            var warehouses = await _db.Warehouses.Where(w => w.IsActive).OrderBy(w => w.Name).ToListAsync();
+            var rateCards = await _db.FreightRateCards.Include(r => r.Carrier).ToListAsync();
             var shipments = await _db.Shipments
                 .Include(s => s.Carrier)
-                .OrderByDescending(s => s.CreatedAt)
+                .Include(s => s.Warehouse)
+                .OrderByDescending(s => s.ShipmentId)
                 .Take(200)
                 .Select(s => new ShipmentListItemViewModel
                 {
@@ -80,7 +83,11 @@ namespace LogiTrack.Controllers
                     Weight = s.Weight,
                     Priority = s.Priority ?? "Standard",
                     Status = s.Status ?? "Pending",
-                    ScheduledDate = s.ScheduledDate
+                    ScheduledDate = s.ScheduledDate,
+                    WarehouseId = s.WarehouseId,
+                    WarehouseName = s.Warehouse != null ? s.Warehouse.Name : "N/A",
+                    ShippingFee = s.ShippingFee,
+                    EstimatedCost = s.EstimatedCost
                 })
                 .ToListAsync();
 
@@ -91,22 +98,26 @@ namespace LogiTrack.Controllers
                 InTransit = await _db.Shipments.CountAsync(s => s.Status == "In Transit"),
                 Completed = await _db.Shipments.CountAsync(s => s.Status == "Delivered" || s.Status == "Completed"),
                 Shipments = shipments,
-                Carriers = carriers
+                Carriers = carriers,
+                Warehouses = warehouses,
+                RateCards = rateCards
             };
 
             return View(model);
         }
 
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<JsonResult> Create([FromForm] ShipmentCreateRequest model)
+        [IgnoreAntiforgeryToken]
+        public async Task<JsonResult> Create([FromBody] ShipmentCreateRequest model)
         {
+            if (model == null)
+                return Json(new { success = false, message = "Invalid request body." });
             if (string.IsNullOrWhiteSpace(model.Origin) ||
                 string.IsNullOrWhiteSpace(model.Destination) ||
                 string.IsNullOrWhiteSpace(model.CargoType) ||
-                model.Weight <= 0 ||
-                model.CarrierId <= 0 ||
-                model.ScheduledDate == default)
+                model.Weight == null || model.Weight <= 0 ||
+                model.CarrierId == null || model.CarrierId <= 0 ||
+                model.ScheduledDate == null || model.ScheduledDate == default)
             {
                 return Json(new { success = false, message = "Please complete all required shipment fields." });
             }
@@ -137,36 +148,67 @@ namespace LogiTrack.Controllers
                 return Json(new { success = false, message = "No active user context found. Please log in again." });
             }
 
-            var nextNumber = await _db.Shipments.CountAsync() + 1;
+
             var shipment = new Shipment
             {
-                ShipmentCode = $"SHP-{DateTime.Now:yyyy}-{nextNumber:D4}",
+                ShipmentCode = "TMP-" + Guid.NewGuid().ToString("N")[..12].ToUpper(),
                 CreatedByUserId = createdByUserId,
-                CarrierId = model.CarrierId,
-                WarehouseId = warehouseId,
+                CarrierId = model.CarrierId.Value,
+                WarehouseId = model.WarehouseId != null && model.WarehouseId > 0 ? model.WarehouseId.Value : warehouseId,
                 Origin = model.Origin.Trim(),
                 Destination = model.Destination.Trim(),
                 CargoType = model.CargoType.Trim(),
-                Weight = model.Weight,
+                Weight = model.Weight ?? 0m,
                 Volume = model.Volume,
+                ShippingFee = model.ShippingFee ?? 0m,
+                EstimatedCost = model.EstimatedCost ?? 0m,
                 Priority = string.IsNullOrWhiteSpace(model.Priority) ? "Standard" : model.Priority.Trim(),
                 Status = "Pending",
-                ScheduledDate = model.ScheduledDate,
+                ScheduledDate = model.ScheduledDate.Value,
                 SpecialHandling = model.Handling != null && model.Handling.Length > 0 ? string.Join(", ", model.Handling) : null,
                 Notes = string.IsNullOrWhiteSpace(model.Notes) ? null : model.Notes.Trim(),
                 CreatedAt = DateTime.Now
             };
 
-            _db.Shipments.Add(shipment);
-            await _db.SaveChangesAsync();
+            try
+            {
+                _db.Shipments.Add(shipment);
+                await _db.SaveChangesAsync();
 
-            return Json(new { success = true, shipmentCode = shipment.ShipmentCode, message = "Shipment created successfully." });
+                // Use the real auto-increment ID so ShipmentCode always matches ShipmentId
+                shipment.ShipmentCode = $"SHP-{DateTime.Now:yyyy}-{shipment.ShipmentId:D4}";
+                await _db.SaveChangesAsync();
+
+                return Json(new { success = true, shipmentCode = shipment.ShipmentCode, message = "Shipment created successfully." });
+            }
+            catch (Exception ex)
+            {
+                var msg = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
+                return Json(new { success = false, message = "DB Error: " + msg });
+            }
+        }
+
+        private decimal? ParseDecimal(string? val)
+        {
+            if (string.IsNullOrWhiteSpace(val)) return null;
+            var cleanVal = val.Replace(",", ".");
+            if (decimal.TryParse(cleanVal, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var result))
+            {
+                return result;
+            }
+            return null;
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<JsonResult> Approve(int shipmentId)
         {
+            if (!CanCancelShipment())
+                return Json(new { success = false, message = "You are not allowed to approve shipments." });
+
+            if (shipmentId <= 0)
+                return Json(new { success = false, message = "Invalid shipment id." });
+
             var shipment = await _db.Shipments.FirstOrDefaultAsync(s => s.ShipmentId == shipmentId);
             if (shipment == null)
             {
@@ -198,6 +240,9 @@ namespace LogiTrack.Controllers
                     s.Weight,
                     s.Priority,
                     s.Status,
+                    s.ShippingFee,
+                    s.EstimatedCost,
+                    WarehouseName = s.Warehouse != null ? s.Warehouse.Name : "N/A",
                     ScheduledDate = s.ScheduledDate.ToString("yyyy-MM-dd")
                 })
                 .ToListAsync();
@@ -222,7 +267,8 @@ namespace LogiTrack.Controllers
             });
         }
         [HttpPost]
-        public async Task<JsonResult> Update([FromForm] ShipmentUpdateRequest model)
+        [ValidateAntiForgeryToken]
+        public async Task<JsonResult> Update([FromBody] ShipmentUpdateRequest model)
         {
             var shipment = await _db.Shipments.FirstOrDefaultAsync(s => s.ShipmentId == model.ShipmentId);
             if (shipment == null)
@@ -231,19 +277,32 @@ namespace LogiTrack.Controllers
             if (string.IsNullOrWhiteSpace(model.Origin) ||
                 string.IsNullOrWhiteSpace(model.Destination) ||
                 string.IsNullOrWhiteSpace(model.CargoType) ||
-                model.Weight <= 0 || model.CarrierId <= 0 || model.ScheduledDate == default)
+                model.Weight == null || model.Weight <= 0 ||
+                model.CarrierId <= 0 ||
+                model.ScheduledDate == default)
             {
                 return Json(new { success = false, message = "Please complete all required fields." });
+            }
+
+            var warehouseId = model.WarehouseId;
+            if (warehouseId <= 0)
+            {
+                warehouseId = await _db.Warehouses.Where(w => w.IsActive).Select(w => w.WarehouseId).FirstOrDefaultAsync();
+                if (warehouseId == 0)
+                    return Json(new { success = false, message = "No active warehouse available." });
             }
 
             shipment.Origin = model.Origin.Trim();
             shipment.Destination = model.Destination.Trim();
             shipment.CargoType = model.CargoType.Trim();
-            shipment.Weight = model.Weight;
+            shipment.Weight = model.Weight ?? 0m;
             shipment.Volume = model.Volume;
             shipment.Priority = string.IsNullOrWhiteSpace(model.Priority) ? "Standard" : model.Priority.Trim();
             shipment.ScheduledDate = model.ScheduledDate;
             shipment.CarrierId = model.CarrierId;
+            shipment.WarehouseId = model.WarehouseId > 0 ? model.WarehouseId : warehouseId;
+            shipment.ShippingFee = model.ShippingFee ?? 0m;
+            shipment.EstimatedCost = model.EstimatedCost ?? 0m;
             shipment.SpecialHandling = model.Handling != null && model.Handling.Length > 0 ? string.Join(", ", model.Handling) : null;
             shipment.Notes = string.IsNullOrWhiteSpace(model.Notes) ? null : model.Notes.Trim();
 
@@ -269,19 +328,42 @@ namespace LogiTrack.Controllers
             await _db.SaveChangesAsync();
             return Json(new { success = true, message = $"Shipment {shipment.ShipmentCode} cancelled." });
         }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Export()
+        {
+            var shipments = await _db.Shipments
+                .Include(s => s.Carrier)
+                .OrderByDescending(s => s.CreatedAt)
+                .ToListAsync();
+
+            var builder = new System.Text.StringBuilder();
+            builder.AppendLine("ShipmentCode,Origin,Destination,Carrier,CargoType,Weight,Status,ScheduledDate,ShippingFee,EstimatedCost");
+
+            foreach (var s in shipments)
+            {
+                builder.AppendLine($"{s.ShipmentCode},{s.Origin},{s.Destination},{s.Carrier?.Name ?? "N/A"},{s.CargoType},{s.Weight},{s.Status},{s.ScheduledDate:yyyy-MM-dd},{s.ShippingFee},{s.EstimatedCost}");
+            }
+
+            return File(System.Text.Encoding.UTF8.GetBytes(builder.ToString()), "text/csv", $"Shipments_Export_{DateTime.Now:yyyyMMdd}.csv");
+        }
     }
 
     public class ShipmentCreateRequest
     {
-        public string Origin { get; set; } = string.Empty;
-        public string Destination { get; set; } = string.Empty;
-        public string CargoType { get; set; } = string.Empty;
-        public decimal Weight { get; set; }
+        public string? Origin { get; set; }
+        public string? Destination { get; set; }
+        public string? CargoType { get; set; }
+        public decimal? Weight { get; set; }
         public decimal? Volume { get; set; }
-        public string Priority { get; set; } = "Standard";
-        public DateTime ScheduledDate { get; set; }
-        public int CarrierId { get; set; }
-        public string[] Handling { get; set; } = Array.Empty<string>();
+        public string? Priority { get; set; }
+        public DateTime? ScheduledDate { get; set; }
+        public int? CarrierId { get; set; }
+        public int? WarehouseId { get; set; }
+        public decimal? ShippingFee { get; set; }
+        public decimal? EstimatedCost { get; set; }
+        public string[]? Handling { get; set; }
         public string? Notes { get; set; }
     }
 
@@ -291,11 +373,14 @@ namespace LogiTrack.Controllers
         public string Origin { get; set; } = string.Empty;
         public string Destination { get; set; } = string.Empty;
         public string CargoType { get; set; } = string.Empty;
-        public decimal Weight { get; set; }
+        public decimal? Weight { get; set; }
         public decimal? Volume { get; set; }
         public string Priority { get; set; } = "Standard";
         public DateTime ScheduledDate { get; set; }
         public int CarrierId { get; set; }
+        public int WarehouseId { get; set; }
+        public decimal? ShippingFee { get; set; }
+        public decimal? EstimatedCost { get; set; }
         public string[] Handling { get; set; } = Array.Empty<string>();
         public string? Notes { get; set; }
     }

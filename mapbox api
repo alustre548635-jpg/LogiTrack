@@ -1,0 +1,32 @@
+# Mapbox Routing Integration Complete!
+
+I have successfully integrated the real-world Mapbox API into your Route Optimization module.
+
+## What was added?
+
+### 1. Interactive Web Mapping
+- We added Mapbox GL JS to the `Views/Route/Index.cshtml` page, replacing the empty placeholder space with a beautiful, dynamic map.
+- The map is styled with a clean `navigation-day-v1` driving theme, providing excellent visibility of roads and highways for logistics tracking.
+
+### 2. Hub Geocoding & Markers
+- I added hardcoded geographical coordinates (`longitude, latitude`) for your primary distribution centers:
+  - **Manila Central Hub**
+  - **QC Distribution Center**
+  - **Cebu City Hub**
+  - **Davao Distribution**
+- **Dynamic Tracking:** As soon as you select a `Start Hub` and `End Hub` from the dropdowns, the map will automatically:
+  1. Drop styled **Blue** (Start) and **Red** (Destination) markers.
+  2. Smoothly zoom and pan the camera to perfectly fit both locations on your screen.
+
+### 3. Live Directions API
+- When you click **"Optimize Route"**, the application now silently connects to the `Mapbox Directions API` using your newly generated Access Token.
+- It calculates the actual driving path between your selected Hubs and visually draws a thick blue polyline connecting them along the exact real-world road network.
+
+## How to Test It
+
+1. Run the LogiTrack application and navigate to **Route Optimization**.
+2. Select a pending **Shipment**.
+3. Ensure both **Start Hub** and **End Hub** are populated with known hubs (e.g., *Manila Central Hub* to *QC Distribution Center*).
+4. Watch the map dynamically zoom to those locations and drop markers.
+5. Click **Optimize Route**.
+6. The exact driving path should instantly render on the map alongside your estimated costs and ETA!
